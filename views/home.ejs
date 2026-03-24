@@ -1,0 +1,580 @@
+<%- include('partials/header') %>
+<% const f = (typeof formData !== 'undefined' && formData) ? formData : {}; %>
+
+<!-- Navbar -->
+<nav class="app-navbar">
+  <div class="container-fluid px-4 d-flex align-items-center justify-content-between">
+    <a href="/" class="brand">
+      <div class="brand-icon"><i class="bi bi-building"></i></div>
+      <span>P2 Form</span>
+      <span class="pill pill-accent d-none d-sm-inline"><%= user.plantName %></span>
+    </a>
+    <div class="nav-actions">
+      <span class="nav-user d-none d-md-flex"><i class="bi bi-person-circle"></i> <%= user.email %></span>
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
+      <a href="/logout" class="btn btn-ghost btn-sm"><i class="bi bi-box-arrow-right"></i></a>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width: 960px;">
+
+  <!-- Mill Info Bar -->
+  <div class="info-bar">
+    <div class="info-bar-label"><i class="bi bi-shield-check me-1"></i> Your Mill Details (auto-filled from account)</div>
+    <div class="info-bar-grid">
+      <div class="info-item"><strong>Undertaking:</strong> <span><%= user.undertakingName %></span></div>
+      <div class="info-item"><strong>Plant:</strong> <span><%= user.plantName %> (<%= user.plantCode %>)</span></div>
+      <div class="info-item"><strong>State:</strong> <span><%= user.state %></span></div>
+      <div class="info-item"><strong>SWS ID:</strong> <span><%= user.swsId %></span></div>
+    </div>
+  </div>
+
+  <form method="POST" action="/preview" id="p2Form">
+    <!-- SECTION 1: Form Applied For -->
+    <div class="card form-section">
+      <div class="card-header"><i class="bi bi-calendar"></i> 1. Form Applied For</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Sugar Season <span class="text-danger">*</span></label>
+            <select name="sugarSeason" class="form-select" required id="sugarSeasonSelect" onchange="updateCaneDuesSeasons()">
+              <option value="">Select</option>
+              <% const seasons = ['2028-29','2027-28','2026-27','2025-26','2024-25','2023-24','2022-23','2021-22','2020-21','2019-20','2018-19']; %>
+              <% seasons.forEach(s => { %>
+                <option value="<%= s %>" <%= f.sugarSeason === s ? 'selected' : '' %>><%= s %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Month <span class="text-danger">*</span></label>
+            <select name="month" class="form-select" required>
+              <option value="">Select</option>
+              <% ['October','November','December','January','February','March','April','May','June','July','August','September'].forEach(m => { %>
+                <option value="<%= m %>" <%= f.month === m ? 'selected' : '' %>><%= m %></option>
+              <% }); %>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: Cane Crushed -->
+    <div class="card form-section">
+      <div class="card-header"><i class="bi bi-speedometer2"></i> 2. Cane Crushed</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Capacity (TCD/TPD)</label>
+            <input type="text" class="form-control" value="<%= user.capacity %>" disabled>
+            <small style="color: var(--text-muted);">Auto-filled from your account</small>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Cane Crushed - During the Month (MT) <span class="text-danger">*</span></label>
+            <input type="text" name="caneCrushedMonth" class="form-control" value="<%= f.caneCrushedMonth || '' %>" required>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: Production -->
+    <div class="card form-section">
+      <div class="card-header"><i class="bi bi-gear"></i> 3. Production of White/Refined/Raw Sugar</div>
+      <div class="card-body">
+        <p style="color: var(--text-muted); font-size: 0.85rem;">Select applicable sub-sections:</p>
+
+        <!-- 2(I) White / Refined Sugar -->
+        <div class="sub-section">
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input toggle-section" name="prod_white_enabled" id="prodWhite" data-target="prodWhiteFields" <%= f.prod_white_enabled ? 'checked' : '' %>>
+            <label class="form-check-label fw-bold" for="prodWhite">2(I) White / Refined Sugar</label>
+          </div>
+          <div class="collapse-fields" id="prodWhiteFields" style="<%= f.prod_white_enabled ? '' : 'display:none' %>">
+            <div class="row">
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">a) From Cane (MT)</label>
+                <input type="text" name="white_from_cane" class="form-control form-control-sm" value="<%= f.white_from_cane || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">b) From Reprocessing old Sugar (MT)</label>
+                <input type="text" name="white_from_reprocessing" class="form-control form-control-sm" value="<%= f.white_from_reprocessing || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">c) From raw procured from other mills (MT)</label>
+                <input type="text" name="white_from_raw_procured" class="form-control form-control-sm" value="<%= f.white_from_raw_procured || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">c(1) From transferred white sugar (MT)</label>
+                <input type="text" name="white_from_transferred" class="form-control form-control-sm" value="<%= f.white_from_transferred || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">c(2) From Raw Sugar own Stock (MT)</label>
+                <input type="text" name="white_from_own_raw" class="form-control form-control-sm" value="<%= f.white_from_own_raw || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">c(3) White from own raw stock (MT)</label>
+                <input type="text" name="white_from_own_raw_produced" class="form-control form-control-sm" value="<%= f.white_from_own_raw_produced || '' %>">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2(II) Raw Sugar -->
+        <div class="sub-section">
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input toggle-section" name="prod_raw_enabled" id="prodRaw" data-target="prodRawFields" <%= f.prod_raw_enabled ? 'checked' : '' %>>
+            <label class="form-check-label fw-bold" for="prodRaw">2(II) Raw Sugar</label>
+          </div>
+          <div class="collapse-fields" id="prodRawFields" style="<%= f.prod_raw_enabled ? '' : 'display:none' %>">
+            <div class="row">
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">a) From Cane (MT)</label>
+                <input type="text" name="raw_from_cane" class="form-control form-control-sm" value="<%= f.raw_from_cane || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">b) From Reprocessing old Sugar (MT)</label>
+                <input type="text" name="raw_from_reprocessing" class="form-control form-control-sm" value="<%= f.raw_from_reprocessing || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">c) Raw procured from domestic mills</label>
+                <input type="text" name="raw_procured_domestic" class="form-control form-control-sm" value="<%= f.raw_procured_domestic || '' %>">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2(III) Procured Sugar -->
+        <div class="sub-section">
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input toggle-section" name="prod_procured_enabled" id="prodProcured" data-target="prodProcuredFields" <%= f.prod_procured_enabled ? 'checked' : '' %>>
+            <label class="form-check-label fw-bold" for="prodProcured">2(III) Procured Sugar</label>
+          </div>
+          <div class="collapse-fields" id="prodProcuredFields" style="<%= f.prod_procured_enabled ? '' : 'display:none' %>">
+            <div class="row">
+              <div class="col-md-3 mb-2">
+                <label class="form-label small">a) Internal transfer from group mills (MT)</label>
+                <input type="text" name="procured_internal_transfer" class="form-control form-control-sm" value="<%= f.procured_internal_transfer || '' %>">
+              </div>
+              <div class="col-md-3 mb-2">
+                <label class="form-label small">Transfer Plant Code</label>
+                <input type="text" name="procured_transfer_plant_code" class="form-control form-control-sm" value="<%= f.procured_transfer_plant_code || '' %>">
+              </div>
+              <div class="col-md-3 mb-2">
+                <label class="form-label small">Transfer Plant Name</label>
+                <input type="text" name="procured_transfer_plant_name" class="form-control form-control-sm" value="<%= f.procured_transfer_plant_name || '' %>">
+              </div>
+              <div class="col-md-3 mb-2">
+                <label class="form-label small">b) From Imported Raw Sugar (MT)</label>
+                <input type="text" name="procured_imported_raw" class="form-control form-control-sm" value="<%= f.procured_imported_raw || '' %>">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3(1) Diversion/sale -->
+        <div class="sub-section">
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input toggle-section" name="prod_diversion_enabled" id="prodDiv" data-target="prodDivFields" <%= f.prod_diversion_enabled ? 'checked' : '' %>>
+            <label class="form-check-label fw-bold" for="prodDiv">3(1) Diversion/sale of B-heavy/Syrup/sugarcane juice/sugar</label>
+          </div>
+          <div class="collapse-fields" id="prodDivFields" style="<%= f.prod_diversion_enabled ? '' : 'display:none' %>">
+            <div class="row">
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">(i) Syrup/Juice/Sugar diverted for ethanol (MT)</label>
+                <input type="text" name="div_syrup_ethanol" class="form-control form-control-sm" value="<%= f.div_syrup_ethanol || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">(ii) B-Heavy diverted for ethanol (MT)</label>
+                <input type="text" name="div_bheavy_ethanol" class="form-control form-control-sm" value="<%= f.div_bheavy_ethanol || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">(iii) C-Heavy diverted for ethanol (MT)</label>
+                <input type="text" name="div_cheavy_ethanol" class="form-control form-control-sm" value="<%= f.div_cheavy_ethanol || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">(iv) Sale of B-Heavy (MT)</label>
+                <input type="text" name="div_bheavy_sale" class="form-control form-control-sm" value="<%= f.div_bheavy_sale || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">(v) Sale of Syrup/Juice/Sugar (MT)</label>
+                <input type="text" name="div_syrup_sale" class="form-control form-control-sm" value="<%= f.div_syrup_sale || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">(vi) Sale of C-Heavy (MT)</label>
+                <input type="text" name="div_cheavy_sale" class="form-control form-control-sm" value="<%= f.div_cheavy_sale || '' %>">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3(2) Ethanol Production -->
+        <div class="sub-section">
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input toggle-section" name="prod_ethanol_enabled" id="prodEthanol" data-target="prodEthanolFields" <%= f.prod_ethanol_enabled ? 'checked' : '' %>>
+            <label class="form-check-label fw-bold" for="prodEthanol">3(2) Ethanol Production</label>
+          </div>
+          <div class="collapse-fields" id="prodEthanolFields" style="<%= f.prod_ethanol_enabled ? '' : 'display:none' %>">
+            <div class="row">
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">(i) From Syrup/Juice/Sugar (KL)</label>
+                <input type="text" name="ethanol_syrup" class="form-control form-control-sm" value="<%= f.ethanol_syrup || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">(ii) From B-Heavy (KL)</label>
+                <input type="text" name="ethanol_bheavy" class="form-control form-control-sm" value="<%= f.ethanol_bheavy || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">(iii) From C-Heavy (KL)</label>
+                <input type="text" name="ethanol_cheavy" class="form-control form-control-sm" value="<%= f.ethanol_cheavy || '' %>">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recovery % -->
+        <div class="sub-section">
+          <h6 class="fw-bold">4. Recovery %</h6>
+          <div class="row">
+            <div class="col-md-6 mb-2">
+              <label class="form-label small">4(i) Purity of Mixed Juice (Monthly Average)</label>
+              <input type="text" name="recovery_purity" class="form-control form-control-sm" value="<%= f.recovery_purity || '' %>">
+            </div>
+            <div class="col-md-6 mb-2">
+              <label class="form-label small">4(ii) Pol in Mixed Juice % Cane (Monthly Average)</label>
+              <input type="text" name="recovery_pol" class="form-control form-control-sm" value="<%= f.recovery_pol || '' %>">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 4: Dispatches -->
+    <div class="card form-section">
+      <div class="card-header"><i class="bi bi-truck"></i> 4. Dispatches</div>
+      <div class="card-body">
+
+        <% const dispatchSections = [
+          { id: '611', name: 'disp_611_enabled', label: '6.1.1 Domestic Dispatch w.r.t. monthly release quantity', hasRemarks: true },
+          { id: '612', name: 'disp_612_enabled', label: '6.1.2 Domestic Dispatch w.r.t. additional allotment', hasRemarks: true },
+          { id: '613', name: 'disp_613_enabled', label: '6.1.3 Domestic Dispatch w.r.t. extended quota', hasRemarks: true },
+          { id: '614', name: 'disp_614_enabled', label: '6.1.4 Any other domestic Dispatch', hasRemarks: true }
+        ]; %>
+
+        <% dispatchSections.forEach(ds => { %>
+          <div class="sub-section">
+            <div class="form-check mb-2">
+              <input type="checkbox" class="form-check-input toggle-section" name="<%= ds.name %>" id="<%= ds.id %>" data-target="<%= ds.id %>Fields" <%= f[ds.name] ? 'checked' : '' %>>
+              <label class="form-check-label fw-bold" for="<%= ds.id %>"><%= ds.label %></label>
+            </div>
+            <div class="collapse-fields" id="<%= ds.id %>Fields" style="<%= f[ds.name] ? '' : 'display:none' %>">
+              <div class="row">
+                <div class="col-md-3 mb-2">
+                  <label class="form-label small">Release Order Date</label>
+                  <input type="text" name="disp_<%= ds.id %>_date" class="form-control form-control-sm" placeholder="DD/MM/YYYY" value="<%= f['disp_' + ds.id + '_date'] || '' %>">
+                </div>
+                <div class="col-md-3 mb-2">
+                  <label class="form-label small">Qty Released (MT)</label>
+                  <input type="text" name="disp_<%= ds.id %>_qty_released" class="form-control form-control-sm" value="<%= f['disp_' + ds.id + '_qty_released'] || '' %>">
+                </div>
+                <div class="col-md-3 mb-2">
+                  <label class="form-label small">Qty Dispatched (MT)</label>
+                  <input type="text" name="disp_<%= ds.id %>_qty_dispatched" class="form-control form-control-sm" value="<%= f['disp_' + ds.id + '_qty_dispatched'] || '' %>">
+                </div>
+                <div class="col-md-3 mb-2">
+                  <label class="form-label small">Remarks</label>
+                  <input type="text" name="disp_<%= ds.id %>_remarks" class="form-control form-control-sm" value="<%= f['disp_' + ds.id + '_remarks'] || '' %>">
+                </div>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+
+        <!-- 6.2 BISS -->
+        <div class="sub-section">
+          <div class="form-check mb-2">
+            <input type="checkbox" class="form-check-input toggle-section" name="disp_62_enabled" id="disp62" data-target="disp62Fields" <%= f.disp_62_enabled ? 'checked' : '' %>>
+            <label class="form-check-label fw-bold" for="disp62">6.2 BISS Dispatch for reprocessing</label>
+          </div>
+          <div class="collapse-fields" id="disp62Fields" style="<%= f.disp_62_enabled ? '' : 'display:none' %>">
+            <div class="row">
+              <div class="col-md-6 mb-2">
+                <label class="form-label small">Release Order Date</label>
+                <input type="text" name="disp_62_date" class="form-control form-control-sm" placeholder="DD/MM/YYYY" value="<%= f.disp_62_date || '' %>">
+              </div>
+              <div class="col-md-6 mb-2">
+                <label class="form-label small">Qty for reprocessing (MT)</label>
+                <input type="text" name="disp_62_qty" class="form-control form-control-sm" value="<%= f.disp_62_qty || '' %>">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6.3, 6.4, 6.5 - Serial entries -->
+        <% const serialSections = [
+          { id: '63', name: 'disp_63_enabled', label: '6.3 Internal transfer of raw sugar within a group' },
+          { id: '64', name: 'disp_64_enabled', label: '6.4 Internal transfer of white sugar within a group' },
+          { id: '65', name: 'disp_65_enabled', label: '6.5 Sale of raw sugar to other mills (domestic)' }
+        ]; %>
+
+        <% serialSections.forEach(ss => { %>
+          <div class="sub-section">
+            <div class="form-check mb-2">
+              <input type="checkbox" class="form-check-input toggle-section" name="<%= ss.name %>" id="disp<%= ss.id %>" data-target="disp<%= ss.id %>Fields" <%= f[ss.name] ? 'checked' : '' %>>
+              <label class="form-check-label fw-bold" for="disp<%= ss.id %>"><%= ss.label %></label>
+            </div>
+            <div class="collapse-fields" id="disp<%= ss.id %>Fields" style="<%= f[ss.name] ? '' : 'display:none' %>">
+              <div class="serial-entries" id="serial_disp_<%= ss.id %>">
+                <% for (let i = 1; i <= 3; i++) { %>
+                  <div class="row serial-row mb-1">
+                    <div class="col-1"><span class="serial-badge"><%= i %></span></div>
+                    <div class="col-5">
+                      <input type="text" name="disp_<%= ss.id %>_<%= i %>_plant_code" class="form-control form-control-sm" placeholder="Plant Code" value="<%= f['disp_' + ss.id + '_' + i + '_plant_code'] || '' %>">
+                    </div>
+                    <div class="col-5">
+                      <input type="text" name="disp_<%= ss.id %>_<%= i %>_qty" class="form-control form-control-sm" placeholder="Qty (MT)" value="<%= f['disp_' + ss.id + '_' + i + '_qty'] || '' %>">
+                    </div>
+                  </div>
+                <% } %>
+              </div>
+              <button type="button" class="btn btn-outline-secondary btn-sm mt-1 add-serial-row" data-prefix="disp_<%= ss.id %>">+ Add Row</button>
+            </div>
+          </div>
+        <% }); %>
+
+        <!-- HSN Codes -->
+        <div class="sub-section">
+          <h6 class="fw-bold">HSN Code Details</h6>
+          <div class="row">
+            <div class="col-md-4 mb-2">
+              <label class="form-label small">HSN 17011490 (MT)</label>
+              <input type="text" name="hsn_17011490" class="form-control form-control-sm" value="<%= f.hsn_17011490 || '' %>">
+            </div>
+            <div class="col-md-4 mb-2">
+              <label class="form-label small">HSN 17019990 (MT)</label>
+              <input type="text" name="hsn_17019990" class="form-control form-control-sm" value="<%= f.hsn_17019990 || '' %>">
+            </div>
+            <div class="col-md-4 mb-2">
+              <label class="form-label small">HSN Others (MT)</label>
+              <input type="text" name="hsn_others" class="form-control form-control-sm" value="<%= f.hsn_others || '' %>">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 5: Export -->
+    <div class="card form-section">
+      <div class="card-header"><i class="bi bi-box-arrow-up-right"></i> 5. Export</div>
+      <div class="card-body">
+        <% const exportSections = [
+          { id: 'exp_661', name: 'exp_661_enabled', label: '6.6(a)(i) OGL/Export Quota - White/Refined', fields: ['order_no','date','qty_released','qty_dispatched'] },
+          { id: 'exp_662', name: 'exp_662_enabled', label: '6.6(a)(ii) OGL - Raw Sugar (incl. SEZ)', fields: ['order_no','date','qty_released','qty_dispatched'] },
+          { id: 'exp_663', name: 'exp_663_enabled', label: '6.6(a)(iii) OGL - Raw Sugar to Refineries', fields: ['order_no','date','qty_dispatched','mill_name'] },
+          { id: 'exp_66b', name: 'exp_66b_enabled', label: '6.6(b) AAS - White Sugar', fields: ['order_no','date','qty_released','qty_received'] }
+        ]; %>
+        <% exportSections.forEach(es => { %>
+          <div class="sub-section">
+            <div class="form-check mb-2">
+              <input type="checkbox" class="form-check-input toggle-section" name="<%= es.name %>" id="<%= es.id %>" data-target="<%= es.id %>Fields" <%= f[es.name] ? 'checked' : '' %>>
+              <label class="form-check-label fw-bold" for="<%= es.id %>"><%= es.label %></label>
+            </div>
+            <div class="collapse-fields" id="<%= es.id %>Fields" style="<%= f[es.name] ? '' : 'display:none' %>">
+              <div class="row">
+                <% es.fields.forEach(fld => { 
+                  const labels = { order_no: 'Order No.', date: 'Date', qty_released: 'Qty Released (MT)', qty_dispatched: 'Qty Dispatched (MT)', qty_received: 'Qty Received (MT)', mill_name: 'Mill/Refinery Name' };
+                %>
+                  <div class="col-md-3 mb-2">
+                    <label class="form-label small"><%= labels[fld] %></label>
+                    <input type="text" name="<%= es.id %>_<%= fld %>" class="form-control form-control-sm" value="<%= f[es.id + '_' + fld] || '' %>" placeholder="<%= fld === 'date' ? 'DD/MM/YYYY' : '' %>">
+                  </div>
+                <% }); %>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    </div>
+
+    <!-- SECTION 6: Import -->
+    <div class="card form-section">
+      <div class="card-header"><i class="bi bi-box-arrow-in-down-right"></i> 6. Import</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Is there any import applicable?</label>
+          <select name="import_applicable" class="form-select" id="importApplicable" onchange="toggleImportFields()">
+            <option value="No" <%= f.import_applicable !== 'Yes' ? 'selected' : '' %>>No</option>
+            <option value="Yes" <%= f.import_applicable === 'Yes' ? 'selected' : '' %>>Yes</option>
+          </select>
+        </div>
+        <div id="importFields" style="<%= f.import_applicable === 'Yes' ? '' : 'display:none' %>">
+          <div class="row">
+            <div class="col-md-4 mb-2">
+              <label class="form-label small">6.7(a)(i) OGL White/Refined Sugar (MT)</label>
+              <input type="text" name="import_ogl_white" class="form-control form-control-sm" value="<%= f.import_ogl_white || '' %>">
+            </div>
+            <div class="col-md-4 mb-2">
+              <label class="form-label small">6.7(a)(ii) OGL Raw Sugar (MT)</label>
+              <input type="text" name="import_ogl_raw" class="form-control form-control-sm" value="<%= f.import_ogl_raw || '' %>">
+            </div>
+            <div class="col-md-4 mb-2">
+              <label class="form-label small">6.7(b) AAS (MT)</label>
+              <input type="text" name="import_aas" class="form-control form-control-sm" value="<%= f.import_aas || '' %>">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 7: Stock of Sugar -->
+    <div class="card form-section">
+      <div class="card-header"><i class="bi bi-boxes"></i> 7. Stock of Sugar (In MT)</div>
+      <div class="card-body">
+        <h6 class="fw-bold">Factory Premises</h6>
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label class="form-label small">White Sugar - Opening Stock</label>
+            <input type="text" name="stock_factory_white_open" class="form-control form-control-sm" value="<%= f.stock_factory_white_open || '' %>">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">BISS/Brown Sugar - Opening</label>
+            <input type="text" name="stock_factory_biss_open" class="form-control form-control-sm" value="<%= f.stock_factory_biss_open || '' %>">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">BISS/Brown Sugar - Closing</label>
+            <input type="text" name="stock_factory_biss_close" class="form-control form-control-sm" value="<%= f.stock_factory_biss_close || '' %>">
+          </div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label class="form-label small">Raw Sugar - Opening Stock</label>
+            <input type="text" name="stock_factory_raw_open" class="form-control form-control-sm" value="<%= f.stock_factory_raw_open || '' %>">
+          </div>
+        </div>
+
+        <h6 class="fw-bold">Outside Godown (Duty Paid)</h6>
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label class="form-label small">White Sugar - Opening</label>
+            <input type="text" name="stock_godown_white_open" class="form-control form-control-sm" value="<%= f.stock_godown_white_open || '' %>">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">White Sugar - Closing</label>
+            <input type="text" name="stock_godown_white_close" class="form-control form-control-sm" value="<%= f.stock_godown_white_close || '' %>">
+          </div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label class="form-label small">BISS/Brown - Opening</label>
+            <input type="text" name="stock_godown_biss_open" class="form-control form-control-sm" value="<%= f.stock_godown_biss_open || '' %>">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">BISS/Brown - Closing</label>
+            <input type="text" name="stock_godown_biss_close" class="form-control form-control-sm" value="<%= f.stock_godown_biss_close || '' %>">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-4">
+            <label class="form-label small">Raw Sugar - Opening</label>
+            <input type="text" name="stock_godown_raw_open" class="form-control form-control-sm" value="<%= f.stock_godown_raw_open || '' %>">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small">Raw Sugar - Closing</label>
+            <input type="text" name="stock_godown_raw_close" class="form-control form-control-sm" value="<%= f.stock_godown_raw_close || '' %>">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 8: Packing Details -->
+    <div class="card form-section">
+      <div class="card-header"><i class="bi bi-bag"></i> 8. Packing Details of Sugar (In MT)</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-3 mb-2">
+            <label class="form-label small">50 Kg Jute Bag</label>
+            <input type="text" name="pack_jute_50" class="form-control form-control-sm" value="<%= f.pack_jute_50 || '' %>">
+          </div>
+          <div class="col-md-3 mb-2">
+            <label class="form-label small">100 Kg Jute Bag</label>
+            <input type="text" name="pack_jute_100" class="form-control form-control-sm" value="<%= f.pack_jute_100 || '' %>">
+          </div>
+          <div class="col-md-3 mb-2">
+            <label class="form-label small">50 Kg PP/HDPE Bag</label>
+            <input type="text" name="pack_pp_50" class="form-control form-control-sm" value="<%= f.pack_pp_50 || '' %>">
+          </div>
+          <div class="col-md-3 mb-2">
+            <label class="form-label small">Other/Loose</label>
+            <input type="text" name="pack_other" class="form-control form-control-sm" value="<%= f.pack_other || '' %>">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 9: Cane Dues Data -->
+    <div class="card form-section">
+      <div class="card-header"><i class="bi bi-cash-stack"></i> 9. Cane Dues Data</div>
+      <div class="card-body" id="caneDuesContainer">
+        <!-- Current Season -->
+        <div class="sub-section">
+          <h6 class="fw-bold text-accent">Current Season (<span id="caneSeason0"><%= f.sugarSeason || '—' %></span>)</h6>
+          <div class="row">
+            <div class="col-md-4 mb-2">
+              <label class="form-label small">Cane Price Payable (Rs Cr)</label>
+              <input type="text" name="cane_current_payable" class="form-control form-control-sm" value="<%= f.cane_current_payable || '' %>">
+            </div>
+            <div class="col-md-4 mb-2">
+              <label class="form-label small">Cane Price Paid (Rs Cr)</label>
+              <input type="text" name="cane_current_paid" class="form-control form-control-sm" value="<%= f.cane_current_paid || '' %>">
+            </div>
+            <div class="col-md-4 mb-2">
+              <label class="form-label small">No. of Farmers</label>
+              <input type="text" name="cane_current_farmers" class="form-control form-control-sm" value="<%= f.cane_current_farmers || '' %>">
+            </div>
+          </div>
+        </div>
+
+        <!-- Previous 4 Seasons (dynamically labeled) -->
+        <% for (let i = 1; i <= 4; i++) { %>
+          <div class="sub-section">
+            <h6 class="fw-bold">Season <span id="caneSeason<%= i %>">—</span></h6>
+            <div class="row">
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">Cane Crushed</label>
+                <input type="text" name="cane_prev<%= i %>_crushed" class="form-control form-control-sm" value="<%= f['cane_prev' + i + '_crushed'] || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">Sugar Production (MT)</label>
+                <input type="text" name="cane_prev<%= i %>_production" class="form-control form-control-sm" value="<%= f['cane_prev' + i + '_production'] || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">Sugar Recovery</label>
+                <input type="text" name="cane_prev<%= i %>_recovery" class="form-control form-control-sm" value="<%= f['cane_prev' + i + '_recovery'] || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">Cane Price Payable (Rs Cr)</label>
+                <input type="text" name="cane_prev<%= i %>_payable" class="form-control form-control-sm" value="<%= f['cane_prev' + i + '_payable'] || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">Cane Price Paid (Rs Cr)</label>
+                <input type="text" name="cane_prev<%= i %>_paid" class="form-control form-control-sm" value="<%= f['cane_prev' + i + '_paid'] || '' %>">
+              </div>
+              <div class="col-md-4 mb-2">
+                <label class="form-label small">No. of Farmers</label>
+                <input type="text" name="cane_prev<%= i %>_farmers" class="form-control form-control-sm" value="<%= f['cane_prev' + i + '_farmers'] || '' %>">
+              </div>
+            </div>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- SUBMIT -->
+    <div class="submit-area">
+      <button type="submit" class="btn btn-accent btn-lg px-5">
+        <i class="bi bi-eye me-2"></i>Preview JSON
+      </button>
+      <p class="text-muted-custom mt-2" style="font-size:0.85rem;">Review your data before sending to NSWS</p>
+    </div>
+  </form>
+</div>
+<%- include('partials/footer') %>

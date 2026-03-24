@@ -1,0 +1,73 @@
+<%- include('partials/header') %>
+
+<!-- Navbar -->
+<nav class="app-navbar">
+  <div class="container-fluid px-4 d-flex align-items-center justify-content-between">
+    <a href="/" class="brand">
+      <div class="brand-icon"><i class="bi bi-building"></i></div>
+      <span>P2 Form</span>
+      <span class="pill pill-warning">Preview</span>
+    </a>
+    <div class="nav-actions">
+      <span class="nav-user d-none d-md-flex"><i class="bi bi-person-circle"></i> <%= user.email %></span>
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
+      <a href="/logout" class="btn btn-ghost btn-sm"><i class="bi bi-box-arrow-right"></i></a>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width: 960px;">
+
+  <!-- Preview Header -->
+  <div class="preview-header">
+    <div class="label">
+      <i class="bi bi-file-earmark-code" style="font-size:1.2rem; color:var(--warning)"></i>
+      <span>Final P2 JSON Payload</span>
+    </div>
+    <span class="pill pill-success"><i class="bi bi-check-circle me-1"></i>Ready to Send</span>
+  </div>
+
+  <!-- JSON Display -->
+  <div class="json-preview mb-4">
+    <pre id="jsonContent"><%= p2Json %></pre>
+  </div>
+
+  <!-- Floating Action Bar -->
+  <div class="action-bar">
+    <form method="POST" action="/back-to-edit">
+      <button type="submit" class="btn btn-ghost">
+        <i class="bi bi-pencil-square me-1"></i> Back to Edit
+      </button>
+    </form>
+    <div class="d-flex gap-2">
+      <button class="btn btn-glass" onclick="copyJson()">
+        <i class="bi bi-clipboard me-1"></i> Copy
+      </button>
+      <form method="POST" action="/send" id="sendForm">
+        <button type="submit" class="btn btn-success-modern" id="sendBtn">
+          <i class="bi bi-send me-1"></i> Send to NSWS
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function copyJson() {
+  const json = document.getElementById('jsonContent').textContent;
+  navigator.clipboard.writeText(json).then(() => {
+    const btn = event.target.closest('button');
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Copied!';
+    btn.classList.replace('btn-glass', 'btn-accent');
+    setTimeout(() => { btn.innerHTML = origHtml; btn.classList.replace('btn-accent', 'btn-glass'); }, 2000);
+  });
+}
+
+document.getElementById('sendForm').addEventListener('submit', function() {
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-dot"></span><span class="spinner-dot"></span><span class="spinner-dot"></span> Sending';
+});
+</script>
+<%- include('partials/footer') %>

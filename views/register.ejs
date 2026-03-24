@@ -1,0 +1,91 @@
+<%- include('partials/header') %>
+<div class="auth-container">
+  <div class="auth-bg">
+    <div class="auth-bg-orb"></div>
+    <div class="auth-bg-orb"></div>
+    <div class="auth-bg-orb"></div>
+  </div>
+  <div class="auth-card auth-card-wide">
+    <div class="auth-theme-toggle">
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
+    </div>
+    <div class="auth-header">
+      <div class="auth-logo"><i class="bi bi-building-add"></i></div>
+      <h2>Register Your Mill</h2>
+      <p>Create your P2 Form account</p>
+    </div>
+    <% if (error) { %>
+      <div class="alert-modern alert-danger-modern mb-3"><i class="bi bi-exclamation-circle"></i> <%= error %></div>
+    <% } %>
+    <form method="POST" action="/register">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="section-title"><i class="bi bi-person-lock me-1"></i> Login Credentials</div>
+          <div class="mb-3">
+            <label class="form-label">Email <span style="color:var(--danger)">*</span></label>
+            <input type="email" name="email" class="form-control" required placeholder="you@sugarmill.com">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password <span style="color:var(--danger)">*</span></label>
+            <input type="password" name="password" class="form-control" required minlength="6" placeholder="Min 6 characters">
+          </div>
+
+          <div class="section-title"><i class="bi bi-key me-1"></i> NSWS Identifiers</div>
+          <div class="mb-3">
+            <label class="form-label">Approval ID <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="approvalId" class="form-control" required value="M009_D001_A076">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">SWS ID <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="swsId" class="form-control" required placeholder="e.g., SW0121626967">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Project Number <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="projectNumber" class="form-control" required placeholder="e.g., P_1">
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="section-title"><i class="bi bi-building me-1"></i> Sugar Mill Details</div>
+          <div class="mb-3">
+            <label class="form-label">Name of Undertaking/Group <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="undertakingName" class="form-control" required placeholder="e.g., Bajaj Hindusthan">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Plant Name <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="plantName" class="form-control" required placeholder="e.g., GURDASPUR">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Plant Code <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="plantCode" class="form-control" required placeholder="e.g., 101">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">State <span style="color:var(--danger)">*</span></label>
+            <select name="state" class="form-select" required>
+              <option value="">Select State</option>
+              <option>ANDHRA PRADESH</option><option>ASSAM</option><option>BIHAR</option>
+              <option>CHHATTISGARH</option><option>GOA</option><option>GUJARAT</option>
+              <option>HARYANA</option><option>HIMACHAL PRADESH</option><option>JHARKHAND</option>
+              <option>KARNATAKA</option><option>KERALA</option><option>MADHYA PRADESH</option>
+              <option>MAHARASHTRA</option><option>MANIPUR</option><option>MEGHALAYA</option>
+              <option>MIZORAM</option><option>NAGALAND</option><option>ODISHA</option>
+              <option>PUNJAB</option><option>RAJASTHAN</option><option>SIKKIM</option>
+              <option>TAMIL NADU</option><option>TELANGANA</option><option>TRIPURA</option>
+              <option>UTTAR PRADESH</option><option>UTTARAKHAND</option><option>WEST BENGAL</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Capacity (TCD) <span style="color:var(--danger)">*</span></label>
+            <input type="text" name="capacity" class="form-control" required placeholder="e.g., 5000">
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-success-modern w-100 mt-3" style="padding: 12px;">
+        <i class="bi bi-person-plus me-1"></i> Create Account
+      </button>
+    </form>
+    <div class="text-center mt-3">
+      <a href="/login" class="link-accent">Already have an account? <strong>Sign in</strong></a>
+    </div>
+  </div>
+</div>
+<%- include('partials/footer') %>

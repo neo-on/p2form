@@ -1,0 +1,38 @@
+<%- include('partials/header') %>
+<div class="auth-container">
+  <div class="auth-bg">
+    <div class="auth-bg-orb"></div>
+    <div class="auth-bg-orb"></div>
+    <div class="auth-bg-orb"></div>
+  </div>
+  <div class="auth-card">
+    <div class="auth-theme-toggle">
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
+    </div>
+    <div class="auth-header">
+      <div class="auth-logo"><i class="bi bi-building"></i></div>
+      <h2>Welcome Back</h2>
+      <p>Sign in to your Sugar Mill Portal</p>
+    </div>
+    <% if (error) { %>
+      <div class="alert-modern alert-danger-modern mb-3"><i class="bi bi-exclamation-circle"></i> <%= error %></div>
+    <% } %>
+    <form method="POST" action="/login">
+      <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" required autofocus placeholder="you@sugarmill.com">
+      </div>
+      <div class="mb-4">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-control" required placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn btn-accent w-100 mb-3" style="padding: 12px;">
+        Sign In <i class="bi bi-arrow-right ms-1"></i>
+      </button>
+    </form>
+    <div class="text-center mt-2">
+      <a href="/register" class="link-accent">Don't have an account? <strong>Register</strong></a>
+    </div>
+  </div>
+</div>
+<%- include('partials/footer') %>
