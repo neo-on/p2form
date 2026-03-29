@@ -40,7 +40,7 @@ fi
 # 6. Start with PM2
 echo "[5/6] Starting app with PM2..."
 pm2 delete p2-form-app 2>/dev/null || true
-pm2 start server.js --name p2-form-app
+pm2 start server.js --name p2-form-app --env production
 pm2 save
 pm2 startup
 
