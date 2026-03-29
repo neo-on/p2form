@@ -1,0 +1,31 @@
+name: Auto Deploy to VPS
+on:
+  push:
+    branches:
+      - main # Deploys automatically when you push to the 'main' branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute remote ssh commands using password
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: root
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script: |
+            echo "Starting automatic deployment..."
+            cd /root/p2form
+            
+            echo "Pulling latest code from GitHub..."
+            git reset --hard
+            git checkout main
+            git pull origin main
+            
+            echo "Installing any new dependencies..."
+            npm install --omit=dev
+            
+            echo "Restarting application..."
+            pm2 restart p2-form-app
+            echo "Deployment successful!"
