@@ -10,16 +10,17 @@ const nodemailer = require('nodemailer');
 // TTL of 900 seconds = 15 minutes
 const otpCache = new NodeCache({ stdTTL: 900, checkperiod: 120 });
 
-// Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+const dns = require('dns');
+
+// Transporter options schema - we will instantiate it dynamically with a resolved IPv4 address
+const getSmtpOptions = (ipv4Host) => ({
+  host: ipv4Host,
   port: parseInt(process.env.SMTP_PORT) || 587,
   secure: false, // Must be false for port 587 (STARTTLS); set true only for port 465
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
   },
-  family: 4,                // Force IPv4 — many VPS lack IPv6 connectivity
   connectionTimeout: 10000, // 10s — fail fast if SMTP server unreachable
   greetingTimeout: 10000,   // 10s — fail fast if SMTP doesn't respond to EHLO
   socketTimeout: 15000      // 15s — fail fast if connection stalls mid-send
@@ -131,6 +132,18 @@ router.post('/forgot-password', async (req, res) => {
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
       console.log(`[DEVELOPMENT MODE] OTP for ${email} is ${otp}`);
     } else {
+      // 100% Fail-Proof IPv4 Resolution Workaround for VPS IPv6 ESOCKET issues
+      const smtpHostname = process.env.SMTP_HOST || 'smtp.gmail.com';
+      const resolvedIpv4 = await new Promise((resolve, reject) => {
+        dns.lookup(smtpHostname, { family: 4 }, (err, address) => {
+          if (err) return reject(err);
+          resolve(address);
+        });
+      });
+
+      // Construct dynamic transporter directly with IPv4 string
+      const transporter = nodemailer.createTransport(getSmtpOptions(resolvedIpv4));
+
       // Send the email
       await transporter.sendMail({
         from: process.env.SMTP_FROM || '"P2 Form Admin" <noreply@p2form.com>',
