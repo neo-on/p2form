@@ -19,6 +19,7 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
   },
+  family: 4,                // Force IPv4 — many VPS lack IPv6 connectivity
   connectionTimeout: 10000, // 10s — fail fast if SMTP server unreachable
   greetingTimeout: 10000,   // 10s — fail fast if SMTP doesn't respond to EHLO
   socketTimeout: 15000      // 15s — fail fast if connection stalls mid-send
