@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // Force IPv4 — DigitalOcean VPS lacks IPv6
 const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const { getConnectionStatus } = require('../config/db');
