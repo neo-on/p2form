@@ -1,3 +1,5 @@
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first'); // Force IPv4 globally to prevent IPv6 timeouts (ESOCKET)
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
