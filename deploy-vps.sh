@@ -39,8 +39,14 @@ fi
 
 # 6. Start with PM2
 echo "[5/6] Starting app with PM2..."
+# We use ecosystem.config.js from now on, which stabilizes environment variables
+pm2 stop p2-form-app 2>/dev/null || true
 pm2 delete p2-form-app 2>/dev/null || true
-pm2 start server.js --name p2-form-app
+# Stop any rogue running processes on ID 0 or server
+pm2 delete 0 2>/dev/null || true
+pm2 delete server 2>/dev/null || true
+
+pm2 start ecosystem.config.js --env production --update-env
 pm2 save
 pm2 startup
 

@@ -1,7 +1,14 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const User = require('../models/User');
 const { getConnectionStatus } = require('../config/db');
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // Limit each IP to 10 login requests per window
+  message: 'Too many login attempts, please try again later.'
+});
 
 // GET /login
 router.get('/login', (req, res) => {
@@ -10,7 +17,7 @@ router.get('/login', (req, res) => {
 });
 
 // POST /login
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   if (!getConnectionStatus()) {
     return res.render('login', { error: 'MongoDB is not connected. Please configure MONGODB_URI in .env and restart.' });
   }

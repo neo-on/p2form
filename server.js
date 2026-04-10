@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const compression = require('compression');
+const helmet = require('helmet');
 const { connectDB, getConnectionStatus } = require('./config/db');
 const authRoutes = require('./routes/auth');
 const formRoutes = require('./routes/form');
@@ -14,6 +16,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // Middleware
+app.use(helmet());
+app.use(compression());
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -29,6 +33,11 @@ async function startServer() {
     saveUninitialized: false,
     cookie: { maxAge: 1000 * 60 * 60 * 24 }
   };
+
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1); // Trust first proxy (Nginx)
+    sessionConfig.cookie.secure = true; // Serve secure cookies
+  }
 
   if (getConnectionStatus()) {
     const MongoStore = require('connect-mongo');
