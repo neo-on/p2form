@@ -67,40 +67,19 @@ router.post('/send', ensureAuth, async (req, res) => {
   }
 
   try {
-    // === TEMPORARY DEBUG: Full diagnostic logging ===
-    console.log('\n========== NSWS SEND DEBUG START ==========');
-    console.log('[1] TIMESTAMP:', new Date().toISOString());
-    console.log('[2] ENV VARS:');
-    console.log('    NSWS_API_URL:', JSON.stringify(process.env.NSWS_API_URL));
-    console.log('    NSWS_ACCESS_ID:', JSON.stringify(process.env.NSWS_ACCESS_ID));
-    console.log('    NSWS_ACCESS_SECRET:', JSON.stringify(process.env.NSWS_ACCESS_SECRET));
-    console.log('    NSWS_API_KEY:', JSON.stringify(process.env.NSWS_API_KEY));
-    console.log('    ACCESS_SECRET length:', process.env.NSWS_ACCESS_SECRET ? process.env.NSWS_ACCESS_SECRET.length : 'UNDEFINED');
-    console.log('    API_KEY length:', process.env.NSWS_API_KEY ? process.env.NSWS_API_KEY.length : 'UNDEFINED');
-    console.log('[3] PAYLOAD (p2Json):', JSON.stringify(p2Json).substring(0, 500));
-
-    const requestConfig = {
-      headers: {
-        'Content-Type': 'application/json',
-        'access-id': process.env.NSWS_ACCESS_ID,
-        'access-secret': process.env.NSWS_ACCESS_SECRET,
-        'api-key': process.env.NSWS_API_KEY
-      },
-      timeout: 30000
-    };
-    console.log('[4] REQUEST HEADERS:', JSON.stringify(requestConfig.headers));
-    console.log('[5] Sending POST to:', process.env.NSWS_API_URL);
-
     const response = await axios.post(
       process.env.NSWS_API_URL,
       p2Json,
-      requestConfig
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'access-id': process.env.NSWS_ACCESS_ID,
+          'access-secret': process.env.NSWS_ACCESS_SECRET,
+          'api-key': process.env.NSWS_API_KEY
+        },
+        timeout: 30000
+      }
     );
-
-    console.log('[6] RESPONSE STATUS:', response.status);
-    console.log('[7] RESPONSE HEADERS:', JSON.stringify(response.headers));
-    console.log('[8] RESPONSE DATA:', JSON.stringify(response.data));
-    console.log('========== NSWS SEND DEBUG END ==========\n');
 
     // Some 200 OK responses from NSWS might contain error messages (e.g. invalid swsId payload)
     const data = response.data;
@@ -122,18 +101,7 @@ router.post('/send', ensureAuth, async (req, res) => {
       responseData: JSON.stringify(data, null, 2)
     });
   } catch (err) {
-    console.error('\n========== NSWS ERROR DEBUG ==========');
-    console.error('[ERR-1] Error Message:', err.message);
-    console.error('[ERR-2] Error Code:', err.code || 'N/A');
-    if (err.response) {
-      console.error('[ERR-3] Response Status:', err.response.status);
-      console.error('[ERR-4] Response Headers:', JSON.stringify(err.response.headers));
-      console.error('[ERR-5] Response Body:', JSON.stringify(err.response.data));
-    } else {
-      console.error('[ERR-3] No response received (network/timeout error)');
-    }
-    console.error('========== NSWS ERROR DEBUG END ==========\n');
-
+    console.error('NSWS Request Failed:', err.message);
     const statusCode = err.response ? err.response.status : 500;
     
     // Parse NSWS's specific rejection message gracefully
