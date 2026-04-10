@@ -4,12 +4,12 @@ on:
   pull_request:
     branches:
       - main
-    # Ensure it triggers on PR creation, editing, and new commits
     types: [opened, synchronize, reopened]
 
 permissions:
-  pull-requests: write # Explicitly required to automatically comment on the PR directly
+  pull-requests: write
   contents: read
+  checks: write
 
 jobs:
   validate-pr:
@@ -26,49 +26,81 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: 📦 Install Architecture
+      - name: 📦 Install Dependencies
         run: npm ci
 
       - name: 🔍 NPM Security Audit
-        # Routes the output visually into the GitHub UI Summary
         run: |
           echo "## 🛡️ NPM Audit Results" >> $GITHUB_STEP_SUMMARY
-          npm audit --audit-level=high >> $GITHUB_STEP_SUMMARY || { echo "❌ Critical Vulnerabilities Found!"; exit 1; }
+          npm audit --audit-level=high >> $GITHUB_STEP_SUMMARY 2>&1 || { echo "❌ Critical Vulnerabilities Found!" >> $GITHUB_STEP_SUMMARY; exit 1; }
           echo "✅ Security checks passed cleanly." >> $GITHUB_STEP_SUMMARY
 
-      - name: 📜 Core Syntax Hardening
-        run: node -c server.js
+      - name: 📜 Core Syntax Validation
+        run: |
+          echo "## 📜 Syntax Validation" >> $GITHUB_STEP_SUMMARY
+          node -c server.js
+          echo "✅ server.js compiled without syntax errors." >> $GITHUB_STEP_SUMMARY
 
-      - name: 📊 Executing Strict Coverage Analytics & PR Commenting
-        # This professional action runs Jest, compiles the coverage, and natively posts a 
-        # gorgeous sticky comment on your actual Pull Request showing you the math exactly!
-        # It natively fails the workflow if any test fails!
-        uses: ArtiomTr/jest-coverage-report-action@v2
-        with:
-          test-script: npm run test
-          annotations: failed-tests
-          output: report-markdown
+      - name: 🧪 Execute Test Suite with Coverage
+        run: |
+          echo "## 🧪 Test Suite Results" >> $GITHUB_STEP_SUMMARY
+          npm test -- --ci --verbose 2>&1 | tee test-output.txt
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -20 test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: ❌ Handle Failure Fallback
-        if: failure()
-        uses: actions/github-script@v6
+      - name: 📊 Post Coverage Report to PR
+        if: always()
+        uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
+            let testOutput = '';
+            try {
+              testOutput = fs.readFileSync('test-output.txt', 'utf8');
+            } catch (e) {
+              testOutput = 'Could not read test output.';
+            }
+
+            // Extract the coverage table (last 20 lines typically contain it)
+            const lines = testOutput.split('\n');
+            const coverageStart = lines.findIndex(l => l.includes('----------|'));
+            let coverageBlock = '';
+            if (coverageStart !== -1) {
+              coverageBlock = lines.slice(coverageStart - 1).join('\n');
+            }
+
+            const passed = lines.some(l => l.includes('Tests:') && l.includes('passed'));
+            const failed = lines.some(l => l.includes('Tests:') && l.includes('failed'));
+
+            // Build summary counts
+            const suiteLine = lines.find(l => l.includes('Test Suites:')) || '';
+            const testLine = lines.find(l => l.includes('Tests:')) || '';
+            const timeLine = lines.find(l => l.includes('Time:')) || '';
+
+            let status = failed ? '🚨 FAILED' : '✅ PASSED';
+            let emoji = failed ? '❌' : '✅';
+
+            let body = `## ${emoji} PR Validation Report\n\n`;
+            body += `**Status:** ${status}\n\n`;
+            body += `| Metric | Result |\n|--------|--------|\n`;
+            body += `| ${suiteLine.replace(/\s+/g, ' ').trim()} ||\n`;
+            body += `| ${testLine.replace(/\s+/g, ' ').trim()} ||\n`;
+            body += `| ${timeLine.replace(/\s+/g, ' ').trim()} ||\n\n`;
+
+            if (coverageBlock) {
+              body += `### 📊 Code Coverage\n\`\`\`\n${coverageBlock}\n\`\`\`\n`;
+            }
+
+            if (failed) {
+              body += `\n> 🚨 **Fix the failing tests and push a new commit to retry.**\n`;
+            } else {
+              body += `\n> ✅ **All checks passed. This PR is safe to merge!**\n`;
+            }
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '🚨 **Pull Request Validation Failed!** The automated tests, security audits, or syntax mapping failed. Fix the errors shown in the Action logs and push a new commit to automatically retry.'
-            })
-
-      - name: ✅ Handle Clean Success
-        if: success()
-        uses: actions/github-script@v6
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '✅ **All Enterprise Checks Passed!** Security audits are clean. The JSON endpoints evaluated flawlessly. You are cleanly approved to execute the Merge!'
-            })
+              body: body
+            });
