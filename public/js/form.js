@@ -72,6 +72,7 @@ function toggleImportFields() {
 // ---------- Dynamic Cane Dues Season Labels ----------
 function updateCaneDuesSeasons() {
   const sel = document.getElementById('sugarSeasonSelect');
+  if (!sel) return; // Element only exists on the home/form page
   const val = sel.value; // e.g. "2024-25"
   if (!val) {
     for (let i = 0; i <= 4; i++) {
