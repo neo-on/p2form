@@ -5,9 +5,12 @@ const User = require('../models/User');
 const ensureAuth = require('../middleware/auth');
 const { buildP2Json } = require('../utils/jsonBuilder');
 
+const Draft = require('../models/Draft');
+
 // GET / - Form page
 router.get('/', ensureAuth, async (req, res) => {
   const user = await User.findById(req.session.userId).lean();
+  req.session.activeDraftId = null; // Clear active draft for new forms
   res.render('home', { user });
 });
 
@@ -30,11 +33,17 @@ router.post('/preview', ensureAuth, async (req, res) => {
 
   const p2Json = buildP2Json(user, formData);
 
+  // Load active draft if we are editing an existing one
+  let draft = null;
+  if (req.session.activeDraftId) {
+    draft = await Draft.findOne({ _id: req.session.activeDraftId, userId: req.session.userId }).lean();
+  }
+
   // Store in session for the send step
   req.session.p2Json = p2Json;
   req.session.formData = formData;
 
-  res.render('preview', { user, p2Json: JSON.stringify(p2Json, null, 2), jsonData: p2Json, draft: null });
+  res.render('preview', { user, p2Json: JSON.stringify(p2Json, null, 2), jsonData: p2Json, draft });
 });
 
 // POST /send - Send to NSWS API
