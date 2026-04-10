@@ -1,0 +1,231 @@
+<%- include('partials/header') %>
+
+<!-- Navbar -->
+<nav class="app-navbar">
+  <div class="container-fluid px-4 d-flex align-items-center justify-content-between">
+    <a href="/" class="brand">
+      <div class="brand-icon"><i class="bi bi-building"></i></div>
+      <span>P2 Form</span>
+      <span class="pill pill-accent">Drafts</span>
+    </a>
+    <div class="nav-actions">
+      <a href="/" class="btn btn-ghost btn-sm" title="New Form"><i class="bi bi-plus-lg"></i><span class="d-none d-md-inline ms-1">New Form</span></a>
+      <span class="nav-user d-none d-md-flex"><i class="bi bi-person-circle"></i> <%= user.email %></span>
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
+      <a href="/logout" class="btn btn-ghost btn-sm"><i class="bi bi-box-arrow-right"></i></a>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width: 1000px;">
+
+  <!-- Hero Header -->
+  <div class="drafts-hero">
+    <div class="drafts-hero-content">
+      <div class="drafts-hero-icon">
+        <i class="bi bi-archive"></i>
+        <div class="drafts-hero-icon-ring"></div>
+      </div>
+      <div>
+        <h2 class="drafts-hero-title">Saved Drafts</h2>
+        <p class="drafts-hero-subtitle">Resume editing or submit your saved P2 Form submissions</p>
+      </div>
+    </div>
+    <div class="drafts-hero-actions">
+      <% if (drafts.length > 0) { %>
+        <span class="draft-count-badge">
+          <span class="draft-count-number"><%= drafts.length %></span>
+          draft<%= drafts.length !== 1 ? 's' : '' %>
+        </span>
+      <% } %>
+      <a href="/" class="btn btn-accent btn-sm">
+        <i class="bi bi-plus-lg me-1"></i> New Form
+      </a>
+    </div>
+  </div>
+
+  <% if (drafts.length === 0) { %>
+    <!-- Empty State -->
+    <div class="empty-state">
+      <div class="empty-state-illustration">
+        <div class="empty-state-circle empty-state-circle-1"></div>
+        <div class="empty-state-circle empty-state-circle-2"></div>
+        <div class="empty-state-circle empty-state-circle-3"></div>
+        <div class="empty-state-icon">
+          <i class="bi bi-archive"></i>
+        </div>
+      </div>
+      <h4>No Drafts Yet</h4>
+      <p>When you save a form as draft from the preview page,<br>it will appear here for you to continue later.</p>
+      <a href="/" class="btn btn-accent">
+        <i class="bi bi-plus-circle me-1"></i> Create Your First Form
+      </a>
+    </div>
+  <% } else { %>
+    <!-- Drafts Grid -->
+    <div class="drafts-grid">
+      <% drafts.forEach((d, idx) => { %>
+        <div class="draft-card" id="draft-<%= d._id %>" style="animation-delay: <%= idx * 0.06 %>s">
+          <!-- Gradient top accent -->
+          <div class="draft-card-accent"></div>
+
+          <div class="draft-card-body">
+            <div class="draft-card-header">
+              <div class="draft-card-icon-wrap">
+                <i class="bi bi-file-earmark-text"></i>
+              </div>
+              <div class="draft-card-title-group">
+                <h6 class="draft-card-title"><%= d.name %></h6>
+                <% if (d.sugarSeason || d.month) { %>
+                  <span class="draft-card-period">
+                    <i class="bi bi-calendar3"></i>
+                    <%= d.month %><%= d.month && d.sugarSeason ? ' · ' : '' %><%= d.sugarSeason %>
+                  </span>
+                <% } %>
+              </div>
+              <button class="draft-delete-btn" onclick="deleteDraft('<%= d._id %>', '<%= d.name.replace(/'/g, "\\'") %>')" title="Delete draft">
+                <i class="bi bi-trash3"></i>
+              </button>
+            </div>
+
+            <div class="draft-card-footer">
+              <div class="draft-card-time">
+                <i class="bi bi-clock-history"></i>
+                <span class="draft-time" data-time="<%= d.updatedAt %>" title="<%= new Date(d.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>"><%= new Date(d.updatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></span>
+              </div>
+              <div class="draft-card-actions">
+                <form method="POST" action="/drafts/<%= d._id %>/edit">
+                  <button type="submit" class="btn-draft-action btn-draft-edit" title="Edit form data">
+                    <i class="bi bi-pencil-square"></i>
+                    <span>Edit</span>
+                  </button>
+                </form>
+                <a href="/drafts/<%= d._id %>/preview" class="btn-draft-action btn-draft-view" title="Preview JSON & send">
+                  <i class="bi bi-eye"></i>
+                  <span>View & Send</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-card">
+    <div class="modal-header-custom">
+      <div class="modal-icon modal-icon-danger"><i class="bi bi-trash3"></i></div>
+      <h5>Delete Draft</h5>
+      <p>Are you sure you want to delete "<strong id="deleteModalName"></strong>"?<br><span style="font-size:0.82rem; opacity:0.7;">This action cannot be undone.</span></p>
+    </div>
+    <div id="deleteError" class="alert-modern alert-danger-modern mx-3" style="display:none;"></div>
+    <div class="modal-footer-custom">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger-fill" id="confirmDeleteBtn" onclick="confirmDelete()">
+        <i class="bi bi-trash3 me-1"></i> Delete Forever
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// --- Relative Time ---
+(function() {
+  document.querySelectorAll('.draft-time').forEach(function(el) {
+    const time = new Date(el.dataset.time);
+    const now = new Date();
+    const diff = Math.floor((now - time) / 1000);
+    let label;
+    if (diff < 60) label = 'Just now';
+    else if (diff < 3600) { const m = Math.floor(diff / 60); label = m + ' min' + (m > 1 ? 's' : '') + ' ago'; }
+    else if (diff < 86400) { const h = Math.floor(diff / 3600); label = h + ' hour' + (h > 1 ? 's' : '') + ' ago'; }
+    else if (diff < 604800) { const d = Math.floor(diff / 86400); label = d + ' day' + (d > 1 ? 's' : '') + ' ago'; }
+    else label = el.textContent;
+    el.textContent = label;
+  });
+})();
+
+// --- Delete Modal ---
+let pendingDeleteId = null;
+
+function deleteDraft(id, name) {
+  pendingDeleteId = id;
+  document.getElementById('deleteModalName').textContent = name;
+  document.getElementById('deleteError').style.display = 'none';
+  document.getElementById('deleteModal').classList.add('active');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('active');
+  pendingDeleteId = null;
+}
+
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteModal();
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeDeleteModal();
+});
+
+async function confirmDelete() {
+  if (!pendingDeleteId) return;
+  const btn = document.getElementById('confirmDeleteBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-dot"></span><span class="spinner-dot"></span><span class="spinner-dot"></span> Deleting';
+
+  try {
+    const res = await fetch('/drafts/' + pendingDeleteId, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      const card = document.getElementById('draft-' + pendingDeleteId);
+      if (card) {
+        card.style.animation = 'cardRemove 0.4s ease forwards';
+        setTimeout(() => {
+          card.remove();
+          const grid = document.querySelector('.drafts-grid');
+          if (grid && grid.children.length === 0) location.reload();
+          const badge = document.querySelector('.draft-count-number');
+          if (badge) {
+            const remaining = document.querySelectorAll('.draft-card').length;
+            badge.textContent = remaining;
+            badge.parentElement.lastChild.textContent = ' draft' + (remaining !== 1 ? 's' : '');
+          }
+        }, 400);
+      }
+      closeDeleteModal();
+      showToast('Draft deleted successfully.', 'success');
+    } else {
+      document.getElementById('deleteError').innerHTML = '<i class="bi bi-exclamation-circle me-1"></i> ' + (data.error || 'Failed to delete.');
+      document.getElementById('deleteError').style.display = 'flex';
+    }
+  } catch (err) {
+    document.getElementById('deleteError').innerHTML = '<i class="bi bi-exclamation-circle me-1"></i> Network error.';
+    document.getElementById('deleteError').style.display = 'flex';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-trash3 me-1"></i> Delete Forever';
+  }
+}
+
+function showToast(message, type) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast-notification toast-' + type;
+  const icon = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill';
+  toast.innerHTML = '<i class="bi ' + icon + ' me-2"></i><span>' + message + '</span>';
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+</script>
+<%- include('partials/footer') %>

@@ -34,7 +34,7 @@ router.post('/preview', ensureAuth, async (req, res) => {
   req.session.p2Json = p2Json;
   req.session.formData = formData;
 
-  res.render('preview', { user, p2Json: JSON.stringify(p2Json, null, 2), jsonData: p2Json });
+  res.render('preview', { user, p2Json: JSON.stringify(p2Json, null, 2), jsonData: p2Json, draft: null });
 });
 
 // POST /send - Send to NSWS API

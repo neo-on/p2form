@@ -5,6 +5,7 @@ const path = require('path');
 const { connectDB, getConnectionStatus } = require('./config/db');
 const authRoutes = require('./routes/auth');
 const formRoutes = require('./routes/form');
+const draftRoutes = require('./routes/draft');
 
 const app = express();
 
@@ -42,6 +43,7 @@ async function startServer() {
   // Routes
   app.use('/', authRoutes);
   app.use('/', formRoutes);
+  app.use('/', draftRoutes);
 
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {

@@ -1,4 +1,5 @@
 <%- include('partials/header') %>
+<% const activeDraft = (typeof draft !== 'undefined' && draft) ? draft : null; %>
 
 <!-- Navbar -->
 <nav class="app-navbar">
@@ -9,6 +10,7 @@
       <span class="pill pill-warning">Preview</span>
     </a>
     <div class="nav-actions">
+      <a href="/drafts" class="btn btn-ghost btn-sm" title="My Drafts"><i class="bi bi-archive"></i><span class="d-none d-md-inline ms-1">Drafts</span></a>
       <span class="nav-user d-none d-md-flex"><i class="bi bi-person-circle"></i> <%= user.email %></span>
       <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
       <a href="/logout" class="btn btn-ghost btn-sm"><i class="bi bi-box-arrow-right"></i></a>
@@ -18,18 +20,42 @@
 
 <div class="container py-4" style="max-width: 960px;">
 
+  <% if (activeDraft) { %>
+    <div class="draft-banner">
+      <div class="draft-banner-icon"><i class="bi bi-archive-fill"></i></div>
+      <div class="draft-banner-text">
+        <span>Loaded from draft</span>
+        <strong><%= activeDraft.name %></strong>
+      </div>
+      <a href="/drafts" class="draft-banner-link">All Drafts <i class="bi bi-arrow-right"></i></a>
+    </div>
+  <% } %>
+
   <!-- Preview Header -->
   <div class="preview-header">
     <div class="label">
-      <i class="bi bi-file-earmark-code" style="font-size:1.2rem; color:var(--warning)"></i>
-      <span>Final P2 JSON Payload</span>
+      <div class="preview-header-icon">
+        <i class="bi bi-file-earmark-code"></i>
+      </div>
+      <div>
+        <span style="font-weight:600;">Final P2 JSON Payload</span>
+        <span class="preview-header-sub">Ready for NSWS submission</span>
+      </div>
     </div>
-    <span class="pill pill-success"><i class="bi bi-check-circle me-1"></i>Ready to Send</span>
+    <span class="pill pill-success pill-glow"><i class="bi bi-check-circle me-1"></i>Valid</span>
   </div>
 
   <!-- JSON Display -->
-  <div class="json-preview mb-4">
-    <pre id="jsonContent"><%= p2Json %></pre>
+  <div class="json-preview-wrap">
+    <div class="json-preview-toolbar">
+      <span class="json-preview-label"><i class="bi bi-braces me-1"></i> JSON</span>
+      <button class="json-copy-btn" onclick="copyJson()" title="Copy to clipboard">
+        <i class="bi bi-clipboard"></i>
+      </button>
+    </div>
+    <div class="json-preview">
+      <pre id="jsonContent"><%= p2Json %></pre>
+    </div>
   </div>
 
   <!-- Floating Action Bar -->
@@ -39,35 +65,177 @@
         <i class="bi bi-pencil-square me-1"></i> Back to Edit
       </button>
     </form>
-    <div class="d-flex gap-2">
-      <button class="btn btn-glass" onclick="copyJson()">
-        <i class="bi bi-clipboard me-1"></i> Copy
+    <div class="d-flex gap-2 flex-wrap justify-content-end">
+      <button class="btn btn-draft" onclick="openDraftModal()">
+        <i class="bi bi-archive me-1"></i> Save as Draft
       </button>
       <form method="POST" action="/send" id="sendForm">
-        <button type="submit" class="btn btn-success-modern" id="sendBtn">
-          <i class="bi bi-send me-1"></i> Send to NSWS
+        <button type="submit" class="btn btn-send" id="sendBtn">
+          <i class="bi bi-send-fill me-1"></i> Send to NSWS
         </button>
       </form>
     </div>
   </div>
 </div>
 
+<!-- Save as Draft Modal -->
+<div class="modal-overlay" id="draftModal">
+  <div class="modal-card">
+    <div class="modal-header-custom">
+      <div class="modal-icon"><i class="bi bi-archive"></i></div>
+      <h5>Save as Draft</h5>
+      <p>Give your draft a name so you can find it later</p>
+    </div>
+    <div class="modal-body-custom">
+      <label class="form-label">Draft Name <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="draftNameInput" class="form-control" placeholder="e.g., October 2025 — partial data" maxlength="100" autofocus>
+      <div class="draft-name-hint">
+        <i class="bi bi-lightbulb-fill me-1" style="color:var(--warning)"></i>
+        Tip: Include the month/season for easy identification
+      </div>
+      <div id="draftError" class="alert-modern alert-danger-modern mt-2" style="display:none;"></div>
+    </div>
+    <div class="modal-footer-custom">
+      <button class="btn btn-ghost" onclick="closeDraftModal()">Cancel</button>
+      <% if (activeDraft) { %>
+        <button class="btn btn-glass" id="updateDraftBtn" onclick="updateDraft('<%= activeDraft._id %>')">
+          <i class="bi bi-arrow-repeat me-1"></i> Update Existing
+        </button>
+      <% } %>
+      <button class="btn btn-accent" id="saveDraftBtn" onclick="saveDraft()">
+        <i class="bi bi-archive me-1"></i> Save Draft
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast-container" id="toastContainer"></div>
+
 <script>
 function copyJson() {
   const json = document.getElementById('jsonContent').textContent;
   navigator.clipboard.writeText(json).then(() => {
-    const btn = event.target.closest('button');
+    const btn = document.querySelector('.json-copy-btn');
     const origHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Copied!';
-    btn.classList.replace('btn-glass', 'btn-accent');
-    setTimeout(() => { btn.innerHTML = origHtml; btn.classList.replace('btn-accent', 'btn-glass'); }, 2000);
+    btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = origHtml; btn.classList.remove('copied'); }, 2000);
+    showToast('JSON copied to clipboard!', 'success');
   });
 }
 
 document.getElementById('sendForm').addEventListener('submit', function() {
   const btn = document.getElementById('sendBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner-dot"></span><span class="spinner-dot"></span><span class="spinner-dot"></span> Sending';
+  btn.innerHTML = '<span class="spinner-dot"></span><span class="spinner-dot"></span><span class="spinner-dot"></span> Sending to NSWS';
 });
+
+// --- Draft Modal ---
+function openDraftModal() {
+  const modal = document.getElementById('draftModal');
+  modal.classList.add('active');
+  setTimeout(() => {
+    document.getElementById('draftNameInput').focus();
+  }, 100);
+  document.getElementById('draftError').style.display = 'none';
+}
+
+function closeDraftModal() {
+  document.getElementById('draftModal').classList.remove('active');
+}
+
+document.getElementById('draftModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDraftModal();
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeDraftModal();
+  if (e.key === 'Enter' && document.getElementById('draftModal').classList.contains('active')) {
+    e.preventDefault();
+    saveDraft();
+  }
+});
+
+async function saveDraft() {
+  const name = document.getElementById('draftNameInput').value.trim();
+  const errEl = document.getElementById('draftError');
+  if (!name) {
+    errEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i> Please enter a draft name.';
+    errEl.style.display = 'flex';
+    document.getElementById('draftNameInput').focus();
+    return;
+  }
+
+  const btn = document.getElementById('saveDraftBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-dot"></span><span class="spinner-dot"></span><span class="spinner-dot"></span> Saving';
+
+  try {
+    const res = await fetch('/drafts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    const data = await res.json();
+    if (data.success) {
+      closeDraftModal();
+      showToast('Draft saved successfully!', 'success');
+    } else {
+      errEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i> ' + (data.error || 'Failed to save.');
+      errEl.style.display = 'flex';
+    }
+  } catch (err) {
+    errEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i> Network error. Please try again.';
+    errEl.style.display = 'flex';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-archive me-1"></i> Save Draft';
+  }
+}
+
+async function updateDraft(draftId) {
+  const btn = document.getElementById('updateDraftBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-dot"></span><span class="spinner-dot"></span><span class="spinner-dot"></span> Updating';
+  const errEl = document.getElementById('draftError');
+
+  try {
+    const name = document.getElementById('draftNameInput').value.trim();
+    const res = await fetch('/drafts/' + draftId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name || undefined })
+    });
+    const data = await res.json();
+    if (data.success) {
+      closeDraftModal();
+      showToast('Draft updated!', 'success');
+    } else {
+      errEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i> ' + (data.error || 'Failed to update.');
+      errEl.style.display = 'flex';
+    }
+  } catch (err) {
+    errEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i> Network error.';
+    errEl.style.display = 'flex';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Update Existing';
+  }
+}
+
+function showToast(message, type) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast-notification toast-' + type;
+  const icon = type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill';
+  toast.innerHTML = '<i class="bi ' + icon + ' me-2"></i><span>' + message + '</span>';
+  container.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
 </script>
 <%- include('partials/footer') %>
