@@ -13,11 +13,15 @@ const otpCache = new NodeCache({ stdTTL: 900, checkperiod: 120 });
 // Nodemailer Transporter
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: process.env.SMTP_PORT || 587,
+  port: parseInt(process.env.SMTP_PORT) || 587,
+  secure: false, // Must be false for port 587 (STARTTLS); set true only for port 465
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
-  }
+  },
+  connectionTimeout: 10000, // 10s — fail fast if SMTP server unreachable
+  greetingTimeout: 10000,   // 10s — fail fast if SMTP doesn't respond to EHLO
+  socketTimeout: 15000      // 15s — fail fast if connection stalls mid-send
 });
 
 const loginLimiter = rateLimit({
