@@ -88,6 +88,12 @@ router.post('/send', ensureAuth, async (req, res) => {
       throw new Error(JSON.stringify(data));
     }
 
+    // Proactive cleanup: If they successfully submitted a loaded draft, delete it from MongoDB
+    if (req.session.activeDraftId) {
+      await Draft.deleteOne({ _id: req.session.activeDraftId, userId: req.session.userId });
+      req.session.activeDraftId = null; // Clear the session tracker
+    }
+
     res.render('result', {
       user,
       success: true,
