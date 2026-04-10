@@ -13,18 +13,21 @@ const otpCache = new NodeCache({ stdTTL: 900, checkperiod: 120 });
 const dns = require('dns');
 
 // Transporter options schema - we will instantiate it dynamically with a resolved IPv4 address
-const getSmtpOptions = (ipv4Host) => ({
-  host: ipv4Host,
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: false, // Must be false for port 587 (STARTTLS); set true only for port 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  },
-  connectionTimeout: 10000, // 10s — fail fast if SMTP server unreachable
-  greetingTimeout: 10000,   // 10s — fail fast if SMTP doesn't respond to EHLO
-  socketTimeout: 15000      // 15s — fail fast if connection stalls mid-send
-});
+const getSmtpOptions = (ipv4Host) => {
+  const port = parseInt(process.env.SMTP_PORT) || 587;
+  return {
+    host: ipv4Host,
+    port: port,
+    secure: port === 465, // Set true only for port 465 (SMTPS), false for 587 (STARTTLS)
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    },
+    connectionTimeout: 10000, // 10s — fail fast if SMTP server unreachable
+    greetingTimeout: 10000,   // 10s — fail fast if SMTP doesn't respond to EHLO
+    socketTimeout: 15000      // 15s — fail fast if connection stalls mid-send
+  };
+};
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
