@@ -21,8 +21,14 @@ jobs:
             cd /root/p2form
             
             echo "[1/4] 📦 Pulling latest code from GitHub..."
-            git fetch --all
-            git reset --hard origin/main
+            if [ -d ".git" ]; then
+              git fetch --all
+              git reset --hard origin/main
+            else
+              echo "⚠️ WARNING: /root/p2form is not a Git repository!"
+              echo "The CI/CD pipeline is restarting the app, but cannot pull new code."
+              echo "To fix this, log into your VPS and run: git clone <your-repo-url> /root/p2form"
+            fi
             
             echo "[2/4] 🧩 Installing dependencies cleanly..."
             # 'npm ci' is much safer and faster for CI/CD than 'npm install'
