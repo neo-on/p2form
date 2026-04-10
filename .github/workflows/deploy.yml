@@ -15,17 +15,33 @@ jobs:
           username: root
           password: ${{ secrets.SERVER_PASSWORD }}
           script: |
-            echo "Starting automatic deployment..."
+            set -e # Halt immediately if any command fails
+            
+            echo "=== 🚀 Starting production deployment ==="
             cd /root/p2form
             
-            echo "Pulling latest code from GitHub..."
-            git reset --hard
-            git checkout main
-            git pull origin main
+            echo "[1/4] 📦 Pulling latest code from GitHub..."
+            git fetch --all
+            git reset --hard origin/main
             
-            echo "Installing any new dependencies..."
-            npm install --omit=dev
+            echo "[2/4] 🧩 Installing dependencies cleanly..."
+            # 'npm ci' is much safer and faster for CI/CD than 'npm install'
+            npm ci --only=production
             
-            echo "Restarting application..."
-            pm2 restart p2-form-app
-            echo "Deployment successful!"
+            echo "[3/4] 🧹 Cleaning up legacy PM2 processes..."
+            pm2 delete p2-form-app 2>/dev/null || true 
+            pm2 delete 0 2>/dev/null || true
+            pm2 delete server 2>/dev/null || true
+            
+            echo "[4/4] 🔄 Starting Application with PM2 Ecosystem..."
+            pm2 start ecosystem.config.js --env production --update-env
+            pm2 save
+            
+            echo "--- 🩺 Health Check & Diagnostics ---"
+            sleep 3 # Give PM2 a moment to boot the node app
+            pm2 show p2-form-app | grep status
+            
+            echo "--- 📜 Latest Application Logs ---"
+            pm2 logs p2-form-app --lines 10 --nostream || true
+            
+            echo "=== ✅ Deployment successful! ==="

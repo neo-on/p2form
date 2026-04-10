@@ -46,6 +46,17 @@ router.post('/send', ensureAuth, async (req, res) => {
     return res.redirect('/');
   }
 
+  // PRE-FLIGHT VALIDATION: ensure PM2 loaded the environment variables
+  if (!process.env.NSWS_ACCESS_ID || !process.env.NSWS_ACCESS_SECRET || !process.env.NSWS_API_KEY || !process.env.NSWS_API_URL) {
+    console.error("NSWS Environment variables are missing! Your server is misconfigured.");
+    return res.render('result', {
+      user,
+      success: false,
+      statusCode: 500,
+      responseData: "Server Configuration Error: The NSWS credentials are fully or partially missing. Please ensure your .env file is correct and the application has been restarted (pm2 restart)."
+    });
+  }
+
   try {
     const response = await axios.post(
       process.env.NSWS_API_URL,
@@ -61,15 +72,32 @@ router.post('/send', ensureAuth, async (req, res) => {
       }
     );
 
+    // Some 200 OK responses from NSWS might contain error messages (e.g. invalid swsId payload)
+    const data = response.data;
+    if (data && data.status !== "200" && data.status !== 200 && data.message) {
+      // NSWS accepted the credentials but rejected the payload geometry
+      throw new Error(JSON.stringify(data));
+    }
+
     res.render('result', {
       user,
       success: true,
       statusCode: response.status,
-      responseData: JSON.stringify(response.data, null, 2)
+      responseData: JSON.stringify(data, null, 2)
     });
   } catch (err) {
+    console.error('NSWS Request Failed:', err.message);
     const statusCode = err.response ? err.response.status : 500;
-    const responseData = err.response ? JSON.stringify(err.response.data, null, 2) : err.message;
+    
+    // Parse NSWS's specific rejection message gracefully
+    let responseData;
+    if (err.response && err.response.data) {
+      responseData = JSON.stringify(err.response.data, null, 2);
+    } else if (err.message) {
+      try { responseData = JSON.stringify(JSON.parse(err.message), null, 2); } catch(e) { responseData = err.message; }
+    } else {
+      responseData = 'Unknown Server Error';
+    }
 
     res.render('result', {
       user,
