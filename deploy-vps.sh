@@ -27,9 +27,10 @@ sudo npm install -g pm2
 
 # 4. Install dependencies
 echo "[4/6] Installing app dependencies..."
-npm ci --only=production
+npm ci --omit=dev
 
-# 5. Setup .env
+# 5. Setup .env & logs
+mkdir -p logs
 if [ ! -f .env ]; then
   echo "[!] No .env file found. Copy .env.example to .env and fill in your values."
   cp .env.example .env

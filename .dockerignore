@@ -1,7 +1,26 @@
 node_modules
 npm-debug.log
 .env
+.env.example
 .git
+.github
 .gitignore
 *.md
 seed.js
+
+# Test & dev files
+tests/
+jest.config.js
+coverage/
+test-output.txt
+
+# Deployment configs (not needed inside container)
+deploy-vps.sh
+nginx.conf
+ecosystem.config.js
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Logs
+logs/
