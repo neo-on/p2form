@@ -1,0 +1,167 @@
+<%- include('partials/header') %>
+
+<!-- Navbar -->
+<nav class="app-navbar">
+  <div class="container-fluid px-4 d-flex align-items-center justify-content-between">
+    <a href="/" class="brand">
+      <div class="brand-icon"><i class="bi bi-building"></i></div>
+      <span>P2 Form</span>
+      <span class="pill pill-success">History</span>
+    </a>
+    <div class="nav-actions">
+      <a href="/" class="btn btn-ghost btn-sm" title="New Form"><i class="bi bi-plus-lg"></i><span class="d-none d-md-inline ms-1">New Form</span></a>
+      <a href="/drafts" class="btn btn-ghost btn-sm" title="My Drafts"><i class="bi bi-archive"></i><span class="d-none d-md-inline ms-1">Drafts</span></a>
+      <span class="nav-user d-none d-md-flex"><i class="bi bi-person-circle"></i> <%= user.email %></span>
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme"></button>
+      <a href="/logout" class="btn btn-ghost btn-sm"><i class="bi bi-box-arrow-right"></i></a>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width: 1000px;">
+
+  <!-- Hero Header -->
+  <div class="drafts-hero">
+    <div class="drafts-hero-content">
+      <div class="drafts-hero-icon" style="background: var(--success-soft); color: var(--success);">
+        <i class="bi bi-clock-history"></i>
+        <div class="drafts-hero-icon-ring" style="border-color: var(--success);"></div>
+      </div>
+      <div>
+        <h2 class="drafts-hero-title">Past Requests</h2>
+        <p class="drafts-hero-subtitle">View all your successfully submitted P2 Form requests and their API responses</p>
+      </div>
+    </div>
+    <div class="drafts-hero-actions">
+      <% if (submissions.length > 0) { %>
+        <span class="draft-count-badge" style="background: var(--success-soft); color: var(--success);">
+          <span class="draft-count-number"><%= submissions.length %></span>
+          submission<%= submissions.length !== 1 ? 's' : '' %>
+        </span>
+      <% } %>
+      <a href="/" class="btn btn-accent btn-sm">
+        <i class="bi bi-plus-lg me-1"></i> New Form
+      </a>
+    </div>
+  </div>
+
+  <% if (submissions.length === 0) { %>
+    <!-- Empty State -->
+    <div class="empty-state">
+      <div class="empty-state-illustration">
+        <div class="empty-state-circle empty-state-circle-1"></div>
+        <div class="empty-state-circle empty-state-circle-2"></div>
+        <div class="empty-state-circle empty-state-circle-3"></div>
+        <div class="empty-state-icon" style="background: var(--success-soft); color: var(--success);">
+          <i class="bi bi-clock-history"></i>
+        </div>
+      </div>
+      <h4>No Submissions Yet</h4>
+      <p>When you successfully submit a P2 Form to the NSWS API,<br>it will be recorded here for your reference.</p>
+      <a href="/" class="btn btn-accent">
+        <i class="bi bi-plus-circle me-1"></i> Submit Your First Form
+      </a>
+    </div>
+  <% } else { %>
+
+    <!-- Search & Filter Bar -->
+    <div class="search-filter-bar">
+      <div class="search-input-wrap">
+        <i class="bi bi-search search-icon"></i>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search by season, month, or date..." oninput="filterSubmissions()">
+      </div>
+    </div>
+
+    <!-- Submissions Grid -->
+    <div class="submissions-grid" id="submissionsGrid">
+      <% submissions.forEach((s, idx) => { %>
+        <div class="submission-card" data-search="<%= (s.sugarSeason || '').toLowerCase() %> <%= (s.month || '').toLowerCase() %> <%= new Date(s.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).toLowerCase() %>" style="animation-delay: <%= idx * 0.06 %>s">
+          <!-- Gradient top accent -->
+          <div class="submission-card-accent"></div>
+
+          <div class="submission-card-body">
+            <div class="submission-card-header">
+              <div class="submission-card-icon-wrap">
+                <i class="bi bi-check-circle-fill"></i>
+              </div>
+              <div class="submission-card-title-group">
+                <h6 class="submission-card-title">
+                  <%= s.month || 'N/A' %> — <%= s.sugarSeason || 'N/A' %>
+                </h6>
+                <span class="submission-card-id">
+                  <i class="bi bi-hash"></i> <%= s._id.toString().slice(-8) %>
+                </span>
+              </div>
+              <span class="submission-status-badge">
+                <i class="bi bi-circle-fill" style="font-size:6px"></i> <%= s.statusCode %>
+              </span>
+            </div>
+
+            <div class="submission-card-footer">
+              <div class="submission-card-time">
+                <i class="bi bi-calendar3"></i>
+                <span class="submission-time" data-time="<%= s.createdAt %>" title="<%= new Date(s.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>">
+                  <%= new Date(s.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>
+                </span>
+              </div>
+              <div class="submission-card-actions">
+                <a href="/past-requests/<%= s._id %>" class="btn-submission-action btn-submission-view" title="View request & response">
+                  <i class="bi bi-eye"></i>
+                  <span>View</span>
+                </a>
+                <a href="/past-requests/<%= s._id %>/pdf" class="btn-submission-action btn-submission-pdf" title="Download PDF">
+                  <i class="bi bi-file-earmark-pdf"></i>
+                  <span>PDF</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+
+    <!-- No Results Message -->
+    <div class="empty-state" id="noResults" style="display:none;">
+      <div class="empty-state-icon" style="background: var(--warning-soft); color: var(--warning); width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin: 0 auto 16px;">
+        <i class="bi bi-search"></i>
+      </div>
+      <h4>No matching submissions</h4>
+      <p>Try adjusting your search query</p>
+    </div>
+  <% } %>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// --- Relative Time ---
+(function() {
+  document.querySelectorAll('.submission-time').forEach(function(el) {
+    const time = new Date(el.dataset.time);
+    const now = new Date();
+    const diff = Math.floor((now - time) / 1000);
+    let label;
+    if (diff < 60) label = 'Just now';
+    else if (diff < 3600) { const m = Math.floor(diff / 60); label = m + ' min' + (m > 1 ? 's' : '') + ' ago'; }
+    else if (diff < 86400) { const h = Math.floor(diff / 3600); label = h + ' hour' + (h > 1 ? 's' : '') + ' ago'; }
+    else if (diff < 604800) { const d = Math.floor(diff / 86400); label = d + ' day' + (d > 1 ? 's' : '') + ' ago'; }
+    else label = el.textContent;
+    el.textContent = label;
+  });
+})();
+
+// --- Search Filter ---
+function filterSubmissions() {
+  const query = document.getElementById('searchInput').value.toLowerCase().trim();
+  const cards = document.querySelectorAll('.submission-card');
+  let visible = 0;
+  cards.forEach(function(card) {
+    const match = !query || card.dataset.search.includes(query);
+    card.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  document.getElementById('noResults').style.display = visible === 0 ? '' : 'none';
+}
+</script>
+<%- include('partials/footer') %>

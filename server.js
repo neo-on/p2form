@@ -10,6 +10,7 @@ const { connectDB, getConnectionStatus } = require('./config/db');
 const authRoutes = require('./routes/auth');
 const formRoutes = require('./routes/form');
 const draftRoutes = require('./routes/draft');
+const submissionRoutes = require('./routes/submissions');
 
 const app = express();
 
@@ -67,6 +68,7 @@ async function startServer() {
   app.use('/', authRoutes);
   app.use('/', formRoutes);
   app.use('/', draftRoutes);
+  app.use('/', submissionRoutes);
 
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {

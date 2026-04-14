@@ -6,6 +6,7 @@ const ensureAuth = require('../middleware/auth');
 const { buildP2Json } = require('../utils/jsonBuilder');
 
 const Draft = require('../models/Draft');
+const Submission = require('../models/Submission');
 
 // GET / - Form page
 router.get('/', ensureAuth, async (req, res) => {
@@ -86,6 +87,21 @@ router.post('/send', ensureAuth, async (req, res) => {
     if (data && data.status !== "200" && data.status !== 200 && data.message) {
       // NSWS accepted the credentials but rejected the payload geometry
       throw new Error(JSON.stringify(data));
+    }
+
+    // Persist the successful submission for "Past Requests"
+    try {
+      await Submission.create({
+        userId: req.session.userId,
+        formData: req.session.formData || {},
+        p2Json,
+        apiResponse: data,
+        statusCode: response.status,
+        sugarSeason: (req.session.formData && req.session.formData.sugarSeason) || '',
+        month: (req.session.formData && req.session.formData.month) || ''
+      });
+    } catch (saveErr) {
+      console.warn('Failed to save submission record:', saveErr.message);
     }
 
     // Proactive cleanup: If they successfully submitted a loaded draft, delete it from MongoDB
