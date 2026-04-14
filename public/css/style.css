@@ -93,13 +93,27 @@
   box-sizing: border-box;
 }
 
+/* Prevent white flash: html gets the bg-color immediately from the theme attribute */
+html {
+  background-color: var(--bg-primary);
+}
+
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Smooth theme transitions — only applies AFTER initial paint (avoids flash on navigation) */
+body.theme-ready,
+body.theme-ready .app-navbar,
+body.theme-ready .form-section,
+body.theme-ready .draft-card,
+body.theme-ready .submission-card,
+body.theme-ready .info-bar {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 /* ---------- Scrollbar ---------- */
@@ -2217,11 +2231,12 @@ p.text-muted, .small.text-muted, p.small {
    Smooth Page Transitions
    ============================================ */
 
-.container {
-  animation: pageIn 0.4s ease;
+/* Content fade-in — only animates opacity of the content area, not the body background */
+.container > :first-child {
+  animation: contentReveal 0.35s ease both;
 }
 
-@keyframes pageIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes contentReveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }

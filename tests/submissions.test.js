@@ -182,7 +182,16 @@ describe('Submissions Route Workflows', () => {
     test('sets correct PDF headers and pipes document for valid submission', async () => {
       const sub = await Submission.create({
         userId, formData: { month: 'October', sugarSeason: '2025-26' },
-        p2Json: [{ approvalId: 'M009', forms: [] }],
+        p2Json: [{ approvalId: 'M009', forms: [{ name: 'P2 Form (Directorate of Sugar)', sections: [
+          { sectionName: 'Form applied for -', fieldResponses: [
+            { fieldName: 'Sugar Season', inputValue: '2025-26' },
+            { fieldName: 'Month', inputValue: 'October' }
+          ]},
+          { sectionName: 'Sugar Mill Details', fieldResponses: [
+            { fieldName: 'Name of the Undertaking/Group', inputValue: 'Test Mill' },
+            { fieldName: 'Plant Name', inputValue: 'Plant A' }
+          ]}
+        ]}] }],
         apiResponse: { status: '200', message: 'Saved' },
         statusCode: 200, sugarSeason: '2025-26', month: 'October'
       });
@@ -193,10 +202,68 @@ describe('Submissions Route Workflows', () => {
         'Content-Disposition',
         expect.stringContaining('attachment; filename=')
       );
-      // Verify filename contains season and month
       const dispositionCall = res.setHeader.mock.calls.find(c => c[0] === 'Content-Disposition');
       expect(dispositionCall[1]).toContain('2025-26');
       expect(dispositionCall[1]).toContain('October');
+    });
+
+    test('handles p2Json with subFields and nested structures without crashing', async () => {
+      const sub = await Submission.create({
+        userId, formData: { month: 'November', sugarSeason: '2025-26', caneCrushedMonth: '1000' },
+        p2Json: [{ approvalId: 'M009', forms: [{ name: 'P2 Form', sections: [
+          { sectionName: 'Production', fieldResponses: [
+            [{ fieldName: 'Select', inputValue: '["2(I) White / Refined Sugar"]' }],
+            [{ fieldName: '2(I) White / Refined Sugar', subFields: [
+              { fieldName: 'From Cane - During the Month (MT)', inputValue: '500' },
+              { fieldName: 'From Reprocessing - During the Month (MT)', inputValue: '0' }
+            ]}]
+          ]},
+          { sectionName: 'Dispatches', fieldResponses: [
+            [{ fieldName: '6.1.1 Domestic Dispatch', subFields: [
+              { fieldName: 'Release Order - Date', inputValue: '2025-11-01' },
+              { fieldName: 'Qty Dispatched - During the Month (MT)', inputValue: '450' }
+            ]}]
+          ]},
+          { sectionName: 'Stock of Sugar (In MT)', fieldResponses: [
+            [{ fieldName: 'Factory Premises - White Sugar', subFields: [
+              { fieldName: 'Opening Stock', inputValue: '2000' }
+            ]}]
+          ]}
+        ]}] }],
+        apiResponse: { status: '200', message: 'Data saved successfully', data: { id: 'ABC123' } },
+        statusCode: 200, sugarSeason: '2025-26', month: 'November'
+      });
+
+      const { res } = await executeRoute('get', `/past-requests/${sub._id}/pdf`, { session: { userId } });
+      // Should not crash — PDF should be generated successfully
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
+      expect(res.status).not.toHaveBeenCalled(); // No error status set
+    });
+
+    test('handles submission with empty p2Json sections gracefully', async () => {
+      const sub = await Submission.create({
+        userId, formData: { month: 'December' },
+        p2Json: [{ approvalId: 'M009', forms: [{ name: 'P2 Form', sections: [] }] }],
+        apiResponse: { ok: true },
+        statusCode: 200, month: 'December'
+      });
+
+      const { res } = await executeRoute('get', `/past-requests/${sub._id}/pdf`, { session: { userId } });
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    test('handles submission with malformed p2Json without crashing', async () => {
+      const sub = await Submission.create({
+        userId, formData: {},
+        p2Json: { notAnArray: true },
+        apiResponse: { error: 'test' },
+        statusCode: 200
+      });
+
+      const { res } = await executeRoute('get', `/past-requests/${sub._id}/pdf`, { session: { userId } });
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 });

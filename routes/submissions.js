@@ -41,129 +41,249 @@ router.get('/past-requests/:id/pdf', ensureAuth, async (req, res) => {
 
     const user = await User.findById(req.session.userId).lean();
 
-    const doc = new PDFDocument({ size: 'A4', margin: 50, bufferPages: true });
+    const doc = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true });
 
     const filename = `P2_Submission_${submission.sugarSeason || 'NA'}_${submission.month || 'NA'}_${submission._id}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     doc.pipe(res);
 
-    // --- Color Palette ---
-    const COLORS = {
+    const W = doc.page.width;
+    const M = 40;                     // margin
+    const CW = W - M * 2;            // content width
+    const COL1 = M + 12;             // label X
+    const COL2 = M + CW * 0.42;     // value X
+
+    const C = {
       primary: '#6366f1',
-      primaryDark: '#4f46e5',
+      primaryLight: '#e0e7ff',
       success: '#10b981',
+      successLight: '#d1fae5',
       text: '#1e293b',
-      textSecondary: '#64748b',
-      border: '#e2e8f0',
-      bgLight: '#f8f9fc',
-      white: '#ffffff'
+      textSec: '#64748b',
+      textMuted: '#94a3b8',
+      border: '#cbd5e1',
+      borderLight: '#e2e8f0',
+      bg: '#f8fafc',
+      white: '#ffffff',
+      danger: '#ef4444'
     };
 
-    // --- Header Band ---
-    doc.rect(0, 0, doc.page.width, 110).fill(COLORS.primary);
+    // ── Helper: ensure Y doesn't overflow, add page if needed ──
+    function ensureSpace(y, needed) {
+      if (y + needed > doc.page.height - 60) {
+        doc.addPage();
+        return 50;
+      }
+      return y;
+    }
 
-    doc.fontSize(22).fillColor(COLORS.white).font('Helvetica-Bold')
-      .text('P2 Form — Submission Report', 50, 30);
+    // ── Helper: draw a section header bar ──
+    function sectionHeader(title, sectionNum, y) {
+      y = ensureSpace(y, 40);
+      doc.roundedRect(M, y, CW, 28, 4).fill(C.primary);
+      doc.fontSize(10).fillColor(C.white).font('Helvetica-Bold')
+        .text(`${sectionNum}. ${title}`, M + 12, y + 8, { width: CW - 24 });
+      return y + 38;
+    }
 
-    doc.fontSize(10).fillColor('#c7d2fe').font('Helvetica')
-      .text(`Generated on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, 50, 58);
+    // ── Helper: draw a key-value row ──
+    function kvRow(label, value, y, opts = {}) {
+      if (!value && value !== 0) return y;
+      const val = String(value);
+      y = ensureSpace(y, 18);
+      const indent = opts.indent || 0;
+      const lx = COL1 + indent;
 
-    doc.fontSize(10).fillColor('#c7d2fe')
-      .text(`Reference ID: ${submission._id}`, 50, 74);
-
-    // --- Company Details Box ---
-    const boxY = 130;
-    doc.roundedRect(50, boxY, doc.page.width - 100, 90, 8).fill(COLORS.bgLight);
-    doc.roundedRect(50, boxY, doc.page.width - 100, 90, 8).lineWidth(1).stroke(COLORS.border);
-
-    doc.fontSize(9).fillColor(COLORS.primary).font('Helvetica-Bold')
-      .text('MILL DETAILS', 65, boxY + 12);
-
-    doc.fontSize(9).fillColor(COLORS.text).font('Helvetica');
-    const col1X = 65;
-    const col2X = 300;
-    let detY = boxY + 30;
-
-    doc.font('Helvetica-Bold').text('Undertaking:', col1X, detY, { continued: true })
-      .font('Helvetica').text(` ${user.undertakingName}`);
-    doc.font('Helvetica-Bold').text('Plant:', col2X, detY, { continued: true })
-      .font('Helvetica').text(` ${user.plantName} (${user.plantCode})`);
-    detY += 18;
-    doc.font('Helvetica-Bold').text('State:', col1X, detY, { continued: true })
-      .font('Helvetica').text(` ${user.state}`);
-    doc.font('Helvetica-Bold').text('SWS ID:', col2X, detY, { continued: true })
-      .font('Helvetica').text(` ${user.swsId}`);
-    detY += 18;
-    doc.font('Helvetica-Bold').text('Sugar Season:', col1X, detY, { continued: true })
-      .font('Helvetica').text(` ${submission.sugarSeason || 'N/A'}`);
-    doc.font('Helvetica-Bold').text('Month:', col2X, detY, { continued: true })
-      .font('Helvetica').text(` ${submission.month || 'N/A'}`);
-
-    // --- Submission Metadata ---
-    let curY = boxY + 110;
-
-    // Status badge
-    const statusText = submission.statusCode === 200 ? 'SUCCESS' : `STATUS ${submission.statusCode}`;
-    const statusColor = submission.statusCode === 200 ? COLORS.success : '#ef4444';
-    doc.roundedRect(50, curY, 90, 22, 4).fill(statusColor);
-    doc.fontSize(9).fillColor(COLORS.white).font('Helvetica-Bold')
-      .text(statusText, 55, curY + 6, { width: 80, align: 'center' });
-
-    doc.fontSize(9).fillColor(COLORS.textSecondary).font('Helvetica')
-      .text(`Submitted: ${new Date(submission.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, 155, curY + 5);
-
-    curY += 45;
-
-    // --- Section Helper ---
-    function drawSection(title, jsonData, yPos) {
-      // Section title
-      doc.fontSize(12).fillColor(COLORS.primary).font('Helvetica-Bold')
-        .text(title, 50, yPos);
-      yPos += 20;
-
-      // Draw a thin accent line
-      doc.moveTo(50, yPos).lineTo(200, yPos).lineWidth(2).strokeColor(COLORS.primary).stroke();
-      yPos += 12;
-
-      // JSON content
-      const jsonStr = typeof jsonData === 'string' ? jsonData : JSON.stringify(jsonData, null, 2);
-      const lines = jsonStr.split('\n');
-
-      doc.font('Courier').fontSize(7.5).fillColor(COLORS.text);
-
-      for (const line of lines) {
-        if (yPos > doc.page.height - 80) {
-          doc.addPage();
-          yPos = 50;
-        }
-        doc.text(line, 60, yPos, { width: doc.page.width - 120 });
-        yPos += 10;
+      if (opts.highlight) {
+        doc.rect(M + 2, y - 2, CW - 4, 17).fill(C.primaryLight);
       }
 
-      return yPos + 15;
+      doc.fontSize(8).fillColor(C.textSec).font('Helvetica')
+        .text(label, lx, y + 1, { width: COL2 - lx - 8 });
+      doc.fontSize(8.5).fillColor(C.text).font('Helvetica-Bold')
+        .text(val, COL2, y + 1, { width: M + CW - COL2 - 12 });
+
+      // Subtle separator
+      doc.moveTo(M + 8, y + 15).lineTo(M + CW - 8, y + 15)
+        .lineWidth(0.3).strokeColor(C.borderLight).stroke();
+
+      return y + 18;
     }
 
-    // --- Request JSON Section ---
-    curY = drawSection('Request Payload (P2 JSON)', submission.p2Json, curY);
-
-    // --- API Response Section ---
-    if (curY > doc.page.height - 150) {
-      doc.addPage();
-      curY = 50;
+    // ── Helper: sub-section title ──
+    function subHeader(title, y) {
+      y = ensureSpace(y, 24);
+      doc.roundedRect(M + 6, y, CW - 12, 20, 3).fill(C.bg);
+      doc.roundedRect(M + 6, y, CW - 12, 20, 3).lineWidth(0.5).strokeColor(C.borderLight).stroke();
+      doc.fontSize(8).fillColor(C.primary).font('Helvetica-Bold')
+        .text(title, M + 16, y + 5, { width: CW - 32 });
+      return y + 26;
     }
-    curY = drawSection('API Response', submission.apiResponse, curY);
 
-    // --- Footer on every page ---
+    // ════════════════════════════════════════════════
+    // PAGE 1 — HEADER
+    // ════════════════════════════════════════════════
+
+    // Top gradient bar
+    doc.rect(0, 0, W, 100).fill(C.primary);
+    // Decorative lighter stripe
+    doc.rect(0, 90, W, 10).fill('#4f46e5');
+
+    // Title
+    doc.fontSize(20).fillColor(C.white).font('Helvetica-Bold')
+      .text('P2 Form — Submission Report', M + 2, 22);
+    doc.fontSize(9).fillColor('#c7d2fe').font('Helvetica')
+      .text('NSWS — Directorate of Sugar', M + 2, 48);
+
+    // Right-side metadata on header
+    const dateStr = new Date(submission.createdAt).toLocaleDateString('en-IN', {
+      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    doc.fontSize(8).fillColor('#c7d2fe').font('Helvetica')
+      .text(`Submitted: ${dateStr}`, W - 230, 28, { width: 190, align: 'right' })
+      .text(`Ref: ${submission._id}`, W - 230, 42, { width: 190, align: 'right' });
+
+    // Status pill
+    const isOk = submission.statusCode === 200;
+    const pillColor = isOk ? C.success : C.danger;
+    const pillText = isOk ? '✓ SUCCESS' : `✗ STATUS ${submission.statusCode}`;
+    doc.roundedRect(W - 230, 58, 80, 18, 9).fill(pillColor);
+    doc.fontSize(8).fillColor(C.white).font('Helvetica-Bold')
+      .text(pillText, W - 228, 63, { width: 76, align: 'center' });
+
+    // ════════════════════════════════════════════════
+    // MILL DETAILS BOX
+    // ════════════════════════════════════════════════
+
+    let y = 118;
+    doc.roundedRect(M, y, CW, 72, 6).fill(C.bg);
+    doc.roundedRect(M, y, CW, 72, 6).lineWidth(0.8).strokeColor(C.border).stroke();
+    // Accent left stripe
+    doc.rect(M, y, 4, 72).fill(C.primary);
+
+    doc.fontSize(7).fillColor(C.primary).font('Helvetica-Bold')
+      .text('SUGAR MILL DETAILS', M + 16, y + 8);
+
+    const midX = M + CW / 2;
+    let dy = y + 24;
+    doc.fontSize(8).fillColor(C.textSec).font('Helvetica');
+
+    function millRow(lbl1, val1, lbl2, val2, ry) {
+      doc.font('Helvetica').fillColor(C.textSec).text(lbl1, M + 16, ry);
+      doc.font('Helvetica-Bold').fillColor(C.text).text(val1, M + 110, ry);
+      doc.font('Helvetica').fillColor(C.textSec).text(lbl2, midX + 10, ry);
+      doc.font('Helvetica-Bold').fillColor(C.text).text(val2, midX + 90, ry);
+    }
+
+    millRow('Undertaking:', user.undertakingName, 'Plant:', `${user.plantName} (${user.plantCode})`, dy);
+    millRow('State:', user.state, 'SWS ID:', user.swsId, dy + 16);
+    millRow('Sugar Season:', submission.sugarSeason || 'N/A', 'Month:', submission.month || 'N/A', dy + 32);
+
+    y = 204;
+
+    // ════════════════════════════════════════════════
+    // PARSE THE P2 JSON INTO READABLE SECTIONS
+    // ════════════════════════════════════════════════
+
+    const p2 = submission.p2Json;
+    let sections = [];
+    if (Array.isArray(p2) && p2[0] && p2[0].forms && p2[0].forms[0]) {
+      sections = p2[0].forms[0].sections || [];
+    }
+
+    sections.forEach((section, sIdx) => {
+      y = sectionHeader(section.sectionName, sIdx + 1, y);
+
+      if (!section.fieldResponses) return;
+
+      section.fieldResponses.forEach(field => {
+        // fieldResponses can be: object, or array of objects
+        const items = Array.isArray(field) ? field : [field];
+
+        items.forEach(item => {
+          if (!item || !item.fieldName) return;
+
+          // Skip "Select" fields (they list enabled checkboxes as JSON array)
+          if (item.fieldName === 'Select') return;
+
+          // If item has subFields → it's a grouped section
+          if (item.subFields && item.subFields.length > 0) {
+            const label = item.serialNumber
+              ? `${item.fieldName} (#${item.serialNumber})`
+              : item.fieldName;
+            y = subHeader(label, y);
+
+            item.subFields.forEach(sf => {
+              y = kvRow(sf.fieldName, sf.inputValue, y, { indent: 8 });
+            });
+          } else if (item.inputValue !== undefined) {
+            // Simple key-value
+            y = kvRow(item.fieldName, item.inputValue, y);
+          }
+        });
+      });
+
+      y += 8; // spacing between sections
+    });
+
+    // ════════════════════════════════════════════════
+    // FORM DATA SUMMARY (user-entered fields)
+    // ════════════════════════════════════════════════
+
+    const formData = submission.formData || {};
+    const formEntries = Object.entries(formData).filter(
+      ([k, v]) => v !== '' && v !== null && v !== undefined && v !== false && v !== 'false' && !k.endsWith('_enabled')
+    );
+
+    if (formEntries.length > 0) {
+      y = sectionHeader('Form Input Summary', sections.length + 1, y);
+
+      formEntries.forEach(([key, value]) => {
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const val = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        y = kvRow(label, val, y);
+      });
+      y += 8;
+    }
+
+    // ════════════════════════════════════════════════
+    // API RESPONSE
+    // ════════════════════════════════════════════════
+
+    y = ensureSpace(y, 80);
+    y = sectionHeader('API Response', sections.length + 2, y);
+
+    const respStr = JSON.stringify(submission.apiResponse, null, 2);
+    const respLines = respStr.split('\n');
+
+    doc.font('Courier').fontSize(7).fillColor(C.textSec);
+    respLines.forEach(line => {
+      y = ensureSpace(y, 12);
+      doc.text(line, M + 14, y, { width: CW - 28 });
+      y += 10;
+    });
+
+    // ════════════════════════════════════════════════
+    // PAGE FOOTERS
+    // ════════════════════════════════════════════════
+
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
-      doc.fontSize(7).fillColor(COLORS.textSecondary).font('Helvetica')
+      const fy = doc.page.height - 32;
+      // Separator line
+      doc.moveTo(M, fy - 4).lineTo(W - M, fy - 4)
+        .lineWidth(0.4).strokeColor(C.borderLight).stroke();
+      doc.fontSize(7).fillColor(C.textMuted).font('Helvetica')
         .text(
-          `P2 Form App — ${user.plantName} | Page ${i + 1} of ${pages.count}`,
-          50, doc.page.height - 30,
-          { width: doc.page.width - 100, align: 'center' }
+          `P2 Form App · ${user.plantName} · ${submission.sugarSeason || ''} ${submission.month || ''}`,
+          M, fy, { width: CW * 0.7 }
         );
+      doc.text(
+        `Page ${i + 1} of ${pages.count}`,
+        M, fy, { width: CW, align: 'right' }
+      );
     }
 
     doc.end();
