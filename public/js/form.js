@@ -8,14 +8,23 @@ function toggleTheme() {
   const current = html.getAttribute('data-theme');
   const next = current === 'dark' ? 'light' : 'dark';
   html.setAttribute('data-theme', next);
+  html.style.colorScheme = next === 'dark' ? 'dark' : 'light';
   localStorage.setItem('p2-theme', next);
 }
 
-// Apply saved theme immediately
+// Safety net — theme is already set in <head>, this covers edge cases
 (function() {
   const saved = localStorage.getItem('p2-theme') || 'light';
   document.documentElement.setAttribute('data-theme', saved);
+  document.documentElement.style.colorScheme = saved === 'dark' ? 'dark' : 'light';
 })();
+
+// Enable smooth transitions AFTER first paint (prevents flash on page load)
+document.addEventListener('DOMContentLoaded', function() {
+  requestAnimationFrame(function() {
+    document.body.classList.add('theme-ready');
+  });
+});
 
 // ---------- Section Toggle (checkbox → show/hide fields) ----------
 document.addEventListener('DOMContentLoaded', function () {
