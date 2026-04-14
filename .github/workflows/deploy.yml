@@ -1,78 +1,117 @@
-name: Enterprise Deploy to VPS
+name: Deploy to VPS
+
 on:
   push:
-    branches:
-      - main # Deploys automatically when you push to the 'main' branch
+    branches: [main]
+
+# Prevent parallel deployments — only one deploy at a time
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
   validate:
-    name: 🧪 Analyze Code Syntax
+    name: 🧪 Pre-Deploy Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Modify this if your VPS runs a different Node version
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate Server Code (Syntax)
-        run: node -c server.js
-        
-      - name: Execute Full Test Suite
+      - name: Validate all source files
+        run: |
+          for f in server.js routes/*.js models/*.js middleware/*.js utils/*.js config/*.js; do
+            node -c "$f"
+          done
+
+      - name: Run full test suite
         run: npm test -- --ci
-        
+
+      - name: Production audit
+        run: npm audit --omit=dev --audit-level=critical || true
+
   deploy:
-    name: 🚀 Zero-Downtime Deploy
-    needs: validate # CRITICAL: This explicitly forces this job to only run if 'validate' had 0 errors
+    name: 🚀 Deploy to Production
+    needs: validate
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+
     steps:
-      - name: Execute remote ssh commands using password
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.1
         with:
           host: ${{ secrets.SERVER_IP }}
-          username: root
+          username: ${{ secrets.SERVER_USER || 'root' }}
           password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script_stop: true
+          command_timeout: 120s
           script: |
-            set -e # Halt immediately if any command fails
-            
-            echo "=== 🚀 Starting production deployment ==="
-            cd /root/p2form
-            
-            echo "[1/4] 📦 Pulling latest code from GitHub..."
-            if [ -d ".git" ]; then
-              git fetch --all
-              git reset --hard origin/main
-            else
-              echo "⚠️ WARNING: /root/p2form is not a Git repository!"
-              echo "To fix this, log into your VPS and run: git clone <your-repo-url> /root/p2form"
-              exit 1
-            fi
-            
-            echo "[2/4] 🧩 Installing dependencies cleanly..."
-            npm ci --only=production
-            
-            echo "[3/4] 🔄 Executing Zero-Downtime PM2 Reload..."
-            # startOrReload naturally falls back to starting the app if it doesn't currently exist!
+            set -e
+
+            APP_DIR="${{ secrets.APP_DIR || '/root/p2form' }}"
+            echo "=== 🚀 Production deployment starting ==="
+            cd "$APP_DIR"
+
+            # [1/5] Pull latest code
+            echo "[1/5] 📦 Pulling latest code..."
+            git fetch --all --prune
+            git reset --hard origin/main
+
+            # [2/5] Install production dependencies
+            echo "[2/5] 🧩 Installing dependencies..."
+            npm ci --omit=dev
+
+            # [3/5] Zero-downtime reload
+            echo "[3/5] 🔄 Reloading application..."
             pm2 startOrReload ecosystem.config.js --env production --update-env
             pm2 save
-            
-            echo "[4/4] 🩺 Performing Live Health Check..."
-            echo "Waiting 5 seconds for PM2 and Node to naturally spin up..."
-            sleep 5
-            
-            # Curl exactly the local port to verify the HTTP server is serving 2XX status codes
-            if curl -s -f http://localhost:3000 > /dev/null; then
-              echo "✅ Health check passed! The node application is actively serving traffic on port 3000."
-            else
-              echo "❌ Health check failed OR internal server error occurred! Please check PM2 logs immediately."
-              pm2 logs p2-form-app --lines 20 --nostream
+
+            # [4/5] Wait for startup and health check
+            echo "[4/5] 🩺 Running health checks..."
+            sleep 4
+
+            RETRIES=3
+            for i in $(seq 1 $RETRIES); do
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/login 2>/dev/null || echo "000")
+              if [ "$HTTP_CODE" = "200" ]; then
+                echo "✅ Health check passed (HTTP $HTTP_CODE) on attempt $i"
+                break
+              fi
+              echo "⏳ Attempt $i/$RETRIES returned HTTP $HTTP_CODE, retrying in 3s..."
+              sleep 3
+            done
+
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "❌ Health check failed after $RETRIES attempts!"
+              echo "--- Recent PM2 logs ---"
+              pm2 logs p2-form-app --lines 30 --nostream || true
               exit 1
             fi
-            
-            echo "=== ✅ Enterprise Deployment highly successful! ==="
+
+            # [5/5] Summary
+            echo ""
+            echo "=== ✅ Deployment successful ==="
+            pm2 status
+
+      - name: 📋 Deployment Summary
+        if: always()
+        run: |
+          echo "## 🚀 Deployment Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Detail | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`main\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Trigger | ${{ github.event.head_commit.message }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Actor | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY

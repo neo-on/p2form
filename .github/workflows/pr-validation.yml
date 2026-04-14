@@ -1,10 +1,14 @@
-name: Enterprise PR Validation
+name: PR Validation
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
     types: [opened, synchronize, reopened]
+
+# Cancel in-flight runs for the same PR — saves runner minutes
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 permissions:
   pull-requests: write
@@ -13,8 +17,9 @@ permissions:
 
 jobs:
   validate-pr:
-    name: 🛡️ Strict Pull Request Audits
+    name: 🛡️ Validate Pull Request
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: 📥 Checkout Code
@@ -29,27 +34,50 @@ jobs:
       - name: 📦 Install Dependencies
         run: npm ci
 
-      - name: 🔍 NPM Security Audit
+      - name: 🔍 Security Audit (production)
         run: |
           echo "## 🛡️ NPM Audit Results" >> $GITHUB_STEP_SUMMARY
-          npm audit --audit-level=high >> $GITHUB_STEP_SUMMARY 2>&1 || { echo "❌ Critical Vulnerabilities Found!" >> $GITHUB_STEP_SUMMARY; exit 1; }
-          echo "✅ Security checks passed cleanly." >> $GITHUB_STEP_SUMMARY
+          npm audit --omit=dev --audit-level=high >> $GITHUB_STEP_SUMMARY 2>&1 || {
+            echo "❌ High/Critical vulnerabilities found in production dependencies!" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          }
+          echo "✅ No high/critical vulnerabilities." >> $GITHUB_STEP_SUMMARY
 
-      - name: 📜 Core Syntax Validation
+      - name: 📜 Syntax Validation (all source files)
         run: |
           echo "## 📜 Syntax Validation" >> $GITHUB_STEP_SUMMARY
-          node -c server.js
-          echo "✅ server.js compiled without syntax errors." >> $GITHUB_STEP_SUMMARY
+          errors=0
+          for f in server.js routes/*.js models/*.js middleware/*.js utils/*.js config/*.js; do
+            if ! node -c "$f" 2>/dev/null; then
+              echo "❌ Syntax error in $f" >> $GITHUB_STEP_SUMMARY
+              errors=1
+            fi
+          done
+          if [ "$errors" -eq 0 ]; then
+            echo "✅ All source files compiled without syntax errors." >> $GITHUB_STEP_SUMMARY
+          else
+            exit 1
+          fi
 
-      - name: 🧪 Execute Test Suite with Coverage
+      - name: 🧪 Run Test Suite with Coverage
         run: |
           echo "## 🧪 Test Suite Results" >> $GITHUB_STEP_SUMMARY
           npm test -- --ci --verbose 2>&1 | tee test-output.txt
           echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -20 test-output.txt >> $GITHUB_STEP_SUMMARY
+          tail -25 test-output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: 📊 Post Coverage Report to PR
+      - name: 📤 Upload Test Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            test-output.txt
+            coverage/
+          retention-days: 14
+
+      - name: 📊 Post Validation Report to PR
         if: always()
         uses: actions/github-script@v7
         with:
@@ -62,7 +90,6 @@ jobs:
               testOutput = 'Could not read test output.';
             }
 
-            // Extract the coverage table (last 20 lines typically contain it)
             const lines = testOutput.split('\n');
             const coverageStart = lines.findIndex(l => l.includes('----------|'));
             let coverageBlock = '';
@@ -73,7 +100,6 @@ jobs:
             const passed = lines.some(l => l.includes('Tests:') && l.includes('passed'));
             const failed = lines.some(l => l.includes('Tests:') && l.includes('failed'));
 
-            // Build summary counts
             const suiteLine = lines.find(l => l.includes('Test Suites:')) || '';
             const testLine = lines.find(l => l.includes('Tests:')) || '';
             const timeLine = lines.find(l => l.includes('Time:')) || '';
