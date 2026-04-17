@@ -5,15 +5,28 @@ const User = require('../models/User');
 const { getConnectionStatus } = require('../config/db');
 const crypto = require('crypto');
 const NodeCache = require('node-cache');
-const { Resend } = require('resend');
+const axios = require('axios');
 
 // TTL of 900 seconds = 15 minutes
 const otpCache = new NodeCache({ stdTTL: 900, checkperiod: 120 });
 
-// Resend client — initialized lazily when API key is available
-const getResendClient = () => {
-  if (!process.env.RESEND_API_KEY) return null;
-  return new Resend(process.env.RESEND_API_KEY);
+// Send email via Brevo (Sendinblue) HTTP API — no SMTP, works on all VPS providers
+const sendBrevoEmail = async (to, subject, htmlContent) => {
+  const response = await axios.post('https://api.brevo.com/v3/smtp/email', {
+    sender: {
+      name: process.env.BREVO_SENDER_NAME || 'P2 Form Admin',
+      email: process.env.BREVO_SENDER_EMAIL
+    },
+    to: [{ email: to }],
+    subject,
+    htmlContent
+  }, {
+    headers: {
+      'api-key': process.env.BREVO_API_KEY,
+      'Content-Type': 'application/json'
+    }
+  });
+  return response;
 };
 
 const loginLimiter = rateLimit({
@@ -115,25 +128,22 @@ router.post('/forgot-password', async (req, res) => {
     // Generate 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
 
-    const resend = getResendClient();
-    if (!resend) {
+    if (!process.env.BREVO_API_KEY || !process.env.BREVO_SENDER_EMAIL) {
       // Dev fallback — no API key configured
       console.log(`[DEVELOPMENT MODE] OTP for ${email} is ${otp}`);
       otpCache.set(email, otp);
     } else {
-      // Send OTP via Resend HTTP API (bypasses SMTP port blocks on VPS)
-      const fromAddress = process.env.RESEND_FROM || process.env.SMTP_FROM || 'P2 Form Admin <onboarding@resend.dev>';
-      const { error } = await resend.emails.send({
-        from: fromAddress,
-        to: email,
-        subject: 'Password Reset Verification Code',
-        html: `<p>You requested a password reset.</p>
-               <p>Your 6-digit Verification Code is: <strong>${otp}</strong></p>
-               <p>This code will expire in 15 minutes. If you did not request this, please ignore this email.</p>`
-      });
-
-      if (error) {
-        console.error('Resend email error:', error);
+      // Send OTP via Brevo HTTP API (uses HTTPS port 443, bypasses SMTP port blocks)
+      try {
+        await sendBrevoEmail(
+          email,
+          'Password Reset Verification Code',
+          `<p>You requested a password reset.</p>
+           <p>Your 6-digit Verification Code is: <strong>${otp}</strong></p>
+           <p>This code will expire in 15 minutes. If you did not request this, please ignore this email.</p>`
+        );
+      } catch (emailErr) {
+        console.error('Brevo email error:', emailErr.response?.data || emailErr.message);
         return res.render('forgot-password', { error: 'Failed to send verification email. Please try again.' });
       }
 
