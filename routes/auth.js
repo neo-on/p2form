@@ -5,28 +5,15 @@ const User = require('../models/User');
 const { getConnectionStatus } = require('../config/db');
 const crypto = require('crypto');
 const NodeCache = require('node-cache');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
 // TTL of 900 seconds = 15 minutes
 const otpCache = new NodeCache({ stdTTL: 900, checkperiod: 120 });
 
-const dns = require('dns');
-
-// Transporter options schema - we will instantiate it dynamically with a resolved IPv4 address
-const getSmtpOptions = (ipv4Host) => {
-  const port = parseInt(process.env.SMTP_PORT) || 587;
-  return {
-    host: ipv4Host,
-    port: port,
-    secure: port === 465, // Set true only for port 465 (SMTPS), false for 587 (STARTTLS)
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    },
-    connectionTimeout: 10000, // 10s — fail fast if SMTP server unreachable
-    greetingTimeout: 10000,   // 10s — fail fast if SMTP doesn't respond to EHLO
-    socketTimeout: 15000      // 15s — fail fast if connection stalls mid-send
-  };
+// Resend client — initialized lazily when API key is available
+const getResendClient = () => {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
 };
 
 const loginLimiter = rateLimit({
@@ -127,35 +114,31 @@ router.post('/forgot-password', async (req, res) => {
 
     // Generate 6-digit OTP
     const otp = crypto.randomInt(100000, 999999).toString();
-    
-    // Store in node-cache (key: email, value: otp)
-    otpCache.set(email, otp);
 
-    // If SMTP is not fully configured, log it to the console (development fallback)
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    const resend = getResendClient();
+    if (!resend) {
+      // Dev fallback — no API key configured
       console.log(`[DEVELOPMENT MODE] OTP for ${email} is ${otp}`);
+      otpCache.set(email, otp);
     } else {
-      // 100% Fail-Proof IPv4 Resolution Workaround for VPS IPv6 ESOCKET issues
-      const smtpHostname = process.env.SMTP_HOST || 'smtp.gmail.com';
-      const resolvedIpv4 = await new Promise((resolve, reject) => {
-        dns.lookup(smtpHostname, { family: 4 }, (err, address) => {
-          if (err) return reject(err);
-          resolve(address);
-        });
-      });
-
-      // Construct dynamic transporter directly with IPv4 string
-      const transporter = nodemailer.createTransport(getSmtpOptions(resolvedIpv4));
-
-      // Send the email
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || '"P2 Form Admin" <noreply@p2form.com>',
+      // Send OTP via Resend HTTP API (bypasses SMTP port blocks on VPS)
+      const fromAddress = process.env.RESEND_FROM || process.env.SMTP_FROM || 'P2 Form Admin <onboarding@resend.dev>';
+      const { error } = await resend.emails.send({
+        from: fromAddress,
         to: email,
         subject: 'Password Reset Verification Code',
         html: `<p>You requested a password reset.</p>
                <p>Your 6-digit Verification Code is: <strong>${otp}</strong></p>
                <p>This code will expire in 15 minutes. If you did not request this, please ignore this email.</p>`
       });
+
+      if (error) {
+        console.error('Resend email error:', error);
+        return res.render('forgot-password', { error: 'Failed to send verification email. Please try again.' });
+      }
+
+      // Only cache OTP after successful send
+      otpCache.set(email, otp);
     }
 
     // Redirect to the reset screen with the email populated so they know where to put the OTP
