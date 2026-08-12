@@ -198,26 +198,50 @@ function collectPaths(payload) {
 }
 
 /**
- * Deliberate superset over the captured reference request.
+ * Deliberate, evidence-backed deviations from the captured reference request.
  *
- * The reference sample omitted "Closing Stock" for the two factory-premises rows
- * (white and raw sugar). We cannot verify that NSWS derives those server-side, so
- * we always send both opening and closing figures for every stock row. Everything
- * else must still match the reference exactly.
+ * 1. ADDITIONS — the sample omitted "Closing Stock" for the two factory-premises rows
+ *    (white and raw sugar). We cannot verify NSWS derives those server-side, so we
+ *    always send both opening and closing figures for every stock row.
+ *
+ * 2. RENAME — the sample used "No. of farmers from which cane procured - During the
+ *    Month" for the two most recent previous seasons. NSWS rejected that payload with:
+ *
+ *      "Kindly provide mandatory subField under Field Sugar Season - 2024-25 under
+ *       section Cane Dues Data Kindly provide mandatory subField under Field Sugar
+ *       Season - 2023-24 under section Cane Dues Data"   (uniqueId: null)
+ *
+ *    Those are exactly the two seasons carrying the suffix, so the suffixed variant is
+ *    not recognised. All five seasons now use the plain label.
+ *
+ * Everything else must still match the reference byte for byte.
  */
 const INTENTIONAL_ADDITIONS = [
   { fieldName: 'Factory Premises - White Sugar', subField: 'Closing Stock' },
   { fieldName: 'Factory Premises - Raw Sugar', subField: 'Closing Stock' }
 ];
 
-/** Reference payload with the intentional additions applied, for strict comparison. */
+const FARMERS_FIELD = 'No. of farmers from which cane procured';
+const REJECTED_FARMERS_FIELD = 'No. of farmers from which cane procured - During the Month';
+
+/** Reference payload with the documented deviations applied, for strict comparison. */
 function expectedPayload() {
   const clone = JSON.parse(JSON.stringify(referencePayload));
-  const stock = clone[0].forms[0].sections.find(s => s.sectionName === 'Stock of Sugar (In MT)');
+  const sections = clone[0].forms[0].sections;
+
+  const stock = sections.find(s => s.sectionName === 'Stock of Sugar (In MT)');
   for (const add of INTENTIONAL_ADDITIONS) {
     const row = stock.fieldResponses.find(fr => fr.fieldName === add.fieldName);
     row.subFields.push({ fieldName: add.subField, inputValue: '0.00' });
   }
+
+  const dues = sections.find(s => s.sectionName === 'Cane Dues Data');
+  for (const season of dues.fieldResponses) {
+    for (const sf of season.subFields) {
+      if (sf.fieldName === REJECTED_FARMERS_FIELD) sf.fieldName = FARMERS_FIELD;
+    }
+  }
+
   return clone;
 }
 
@@ -228,16 +252,38 @@ describe('utils/jsonBuilder.js — NSWS payload parity', () => {
     expect(payload).toEqual(expectedPayload());
   });
 
-  test('only the documented closing-stock additions differ from the reference', () => {
+  test('only the documented deviations differ from the raw reference', () => {
     const ours = new Set(collectPaths(payload));
     const theirs = new Set(collectPaths(referencePayload));
     const extra = [...ours].filter(p => !theirs.has(p));
     const missing = [...theirs].filter(p => !ours.has(p));
 
-    expect(missing).toEqual([]);
-    expect(extra).toEqual(
-      INTENTIONAL_ADDITIONS.map(a => `Stock of Sugar (In MT) > ${a.fieldName} > ${a.subField}`)
-    );
+    expect(extra.sort()).toEqual([
+      'Cane Dues Data > Sugar Season - 2023-24 > ' + FARMERS_FIELD,
+      'Cane Dues Data > Sugar Season - 2024-25 > ' + FARMERS_FIELD,
+      'Stock of Sugar (In MT) > Factory Premises - Raw Sugar > Closing Stock',
+      'Stock of Sugar (In MT) > Factory Premises - White Sugar > Closing Stock'
+    ].sort());
+
+    expect(missing.sort()).toEqual([
+      'Cane Dues Data > Sugar Season - 2023-24 > ' + REJECTED_FARMERS_FIELD,
+      'Cane Dues Data > Sugar Season - 2024-25 > ' + REJECTED_FARMERS_FIELD
+    ].sort());
+  });
+
+  test('every cane dues season uses the plain farmer-count label NSWS accepts', () => {
+    const dues = payload[0].forms[0].sections.find(s => s.sectionName === 'Cane Dues Data');
+    expect(dues.fieldResponses).toHaveLength(5);
+    for (const season of dues.fieldResponses) {
+      const names = season.subFields.map(sf => sf.fieldName);
+      expect(names).toContain(FARMERS_FIELD);
+      expect(names).not.toContain(REJECTED_FARMERS_FIELD);
+    }
+  });
+
+  test('no cane dues subField name anywhere carries the rejected suffix', () => {
+    const json = JSON.stringify(buildP2Json(referenceUser, { sugarSeason: '2025-26' }));
+    expect(json).not.toContain(REJECTED_FARMERS_FIELD);
   });
 
   test('every stock row reports both opening and closing stock', () => {
