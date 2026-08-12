@@ -505,16 +505,21 @@ function updateCaneDuesSeasons() {
     require('caneCrushedMonth', 'Enter the cane crushed during the month (section 2).');
 
     // A selected release-order sub-section must carry its order date, otherwise
-    // the payload silently falls back to today's date.
+    // the payload silently falls back to today's date. Mirrors DATED_SECTIONS
+    // in utils/formFields.js - keep both lists in step.
     [
-      { cb: 'disp_611_enabled', date: 'disp_611_date', label: '6.1.1' },
-      { cb: 'disp_612_enabled', date: 'disp_612_date', label: '6.1.2' },
-      { cb: 'disp_613_enabled', date: 'disp_613_date', label: '6.1.3' },
-      { cb: 'disp_614_enabled', date: 'disp_614_date', label: '6.1.4' },
-      { cb: 'disp_62_enabled', date: 'disp_62_date', label: '6.2' }
+      { cb: 'disp_611_enabled', date: 'disp_611_date', label: 'dispatch 6.1.1' },
+      { cb: 'disp_612_enabled', date: 'disp_612_date', label: 'dispatch 6.1.2' },
+      { cb: 'disp_613_enabled', date: 'disp_613_date', label: 'dispatch 6.1.3' },
+      { cb: 'disp_614_enabled', date: 'disp_614_date', label: 'dispatch 6.1.4' },
+      { cb: 'disp_62_enabled', date: 'disp_62_date', label: 'dispatch 6.2' },
+      { cb: 'exp_661_enabled', date: 'exp_661_date', label: 'export 6.6 (a)(i)' },
+      { cb: 'exp_662_enabled', date: 'exp_662_date', label: 'export 6.6 (a)(ii)' },
+      { cb: 'exp_663_enabled', date: 'exp_663_date', label: 'export 6.6 (a)(iii)' },
+      { cb: 'exp_66b_enabled', date: 'exp_66b_date', label: 'export 6.6 (b)' }
     ].forEach(function (rule) {
       var cb = form.elements[rule.cb];
-      if (cb && cb.checked) require(rule.date, 'Enter the release order date for dispatch ' + rule.label + '.');
+      if (cb && cb.checked) require(rule.date, 'Enter the order date for ' + rule.label + '.');
     });
 
     return errors;
