@@ -49,12 +49,57 @@
   <!-- JSON Display -->
   <div class="json-preview-wrap">
     <div class="json-preview-toolbar">
-      <span class="json-preview-label"><i class="bi bi-braces me-1"></i> JSON</span>
-      <button class="json-copy-btn" onclick="copyJson()" title="Copy to clipboard">
+      <div class="preview-tabs">
+        <button type="button" class="preview-tab active" data-pane="paneSummary"><i class="bi bi-list-check me-1"></i> Review</button>
+        <button type="button" class="preview-tab" data-pane="paneJson"><i class="bi bi-braces me-1"></i> Raw JSON</button>
+      </div>
+      <button class="json-copy-btn" onclick="copyJson()" title="Copy JSON to clipboard">
         <i class="bi bi-clipboard"></i>
       </button>
     </div>
-    <div class="json-preview">
+
+    <div class="preview-pane" id="paneSummary">
+      <% jsonData[0].forms[0].sections.forEach((section, si) => { %>
+        <div class="rev-section">
+          <div class="rev-section-head"><span class="rev-section-num"><%= si + 1 %></span><%= section.sectionName %></div>
+          <table class="rev-table">
+            <tbody>
+              <% section.fieldResponses.forEach(fr => { %>
+                <% if (fr.subFields) { %>
+                  <tr class="rev-group">
+                    <td colspan="2">
+                      <%= fr.fieldName %><% if (fr.serialNumber) { %> <span class="rev-serial">#<%= fr.serialNumber %></span><% } %>
+                    </td>
+                  </tr>
+                  <% fr.subFields.forEach(sf => { %>
+                    <tr>
+                      <td class="rev-key rev-key-sub"><%= sf.fieldName %></td>
+                      <td class="rev-val"><%= sf.inputValue %></td>
+                    </tr>
+                  <% }); %>
+                <% } else if (fr.fieldName === 'Select') { %>
+                  <tr>
+                    <td class="rev-key">Selected sub-sections</td>
+                    <td class="rev-val">
+                      <% const picked = JSON.parse(fr.inputValue || '[]'); %>
+                      <% if (!picked.length) { %><em class="rev-empty">none</em><% } %>
+                      <% picked.forEach(p => { %><span class="rev-chip"><%= p %></span><% }); %>
+                    </td>
+                  </tr>
+                <% } else { %>
+                  <tr>
+                    <td class="rev-key"><%= fr.fieldName %></td>
+                    <td class="rev-val"><%= fr.inputValue %></td>
+                  </tr>
+                <% } %>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% }); %>
+    </div>
+
+    <div class="preview-pane json-preview" id="paneJson" hidden>
       <pre id="jsonContent"><%= p2Json %></pre>
     </div>
   </div>
@@ -114,6 +159,15 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
+document.querySelectorAll('.preview-tab').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    document.querySelectorAll('.preview-tab').forEach(function (t) { t.classList.toggle('active', t === tab); });
+    document.querySelectorAll('.preview-pane').forEach(function (p) {
+      if (p.id === tab.dataset.pane) { p.removeAttribute('hidden'); } else { p.setAttribute('hidden', ''); }
+    });
+  });
+});
+
 function copyJson() {
   const json = document.getElementById('jsonContent').textContent;
   navigator.clipboard.writeText(json).then(() => {

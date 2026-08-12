@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Payment Release Request — NeoSoft Solutions → Dharni Sugar Mill Pvt. Ltd.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #0F172A;
+    background: #EEF2FF;
+    line-height: 1.5;
+    font-size: 12.5px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    width: 210mm;
+    height: 297mm;
+    margin: 18px auto;
+    background: #FFFFFF;
+    box-shadow: 0 24px 60px rgba(15, 11, 46, 0.18);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- Hero (identical to invoice) ---------- */
+  .hero {
+    background: linear-gradient(135deg, #1E1B4B 0%, #312E81 45%, #4338CA 100%);
+    color: #FFFFFF;
+    padding: 22px 36px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.32) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    position: relative;
+    z-index: 1;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 48px; height: 48px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+  .brand-text h1 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 24px;
+    line-height: 1.1;
+  }
+  .brand-text p {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 3px;
+    letter-spacing: 0.2px;
+  }
+  .doc-badge {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 11px;
+    padding: 11px 18px;
+    text-align: right;
+    min-width: 200px;
+  }
+  .doc-badge .label {
+    font-size: 9.5px;
+    letter-spacing: 3.5px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+  }
+  .doc-badge .number {
+    font-weight: 800;
+    font-size: 16px;
+    color: #FFFFFF;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+  .doc-badge .date {
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.72);
+    margin-top: 2px;
+  }
+
+  /* ---------- Body ---------- */
+  .body {
+    padding: 26px 44px 18px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- Letter ---------- */
+  .recipient {
+    margin-bottom: 14px;
+  }
+  .recipient .to-line {
+    font-size: 12.5px;
+    color: #0F172A;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .recipient .addr {
+    font-size: 12.5px;
+    color: #1E293B;
+    line-height: 1.55;
+  }
+  .recipient .addr .company {
+    font-weight: 700;
+    color: #0F172A;
+  }
+
+  .attention {
+    margin: 14px 0 18px;
+    padding: 10px 14px;
+    border-left: 3px solid #4338CA;
+    background: #F5F3FF;
+    border-radius: 0 8px 8px 0;
+    font-size: 12.5px;
+  }
+  .attention .attn-label {
+    font-size: 9.5px;
+    letter-spacing: 2.2px;
+    color: #4338CA;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .attention .attn-name {
+    font-weight: 700;
+    color: #0F172A;
+  }
+  .attention .attn-title {
+    color: #475569;
+    font-size: 11.5px;
+  }
+
+  .subject {
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #E5E7EB;
+  }
+  .subject .lbl {
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    color: #6366F1;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .subject .text {
+    font-size: 14px;
+    color: #0F172A;
+    font-weight: 700;
+  }
+
+  .salutation {
+    font-size: 12.5px;
+    color: #0F172A;
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .letter-body p {
+    font-size: 12.5px;
+    color: #1F2937;
+    line-height: 1.7;
+    margin-bottom: 10px;
+  }
+
+  /* ---------- Bank Details Card ---------- */
+  .bank-card {
+    margin: 14px 0 18px;
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 16px 20px;
+    background:
+      linear-gradient(135deg, rgba(238, 242, 255, 0.6) 0%, rgba(250, 250, 252, 0.9) 100%);
+  }
+  .bank-card .head {
+    font-size: 9.5px;
+    letter-spacing: 3px;
+    color: #4338CA;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bank-card .head::before {
+    content: "";
+    display: inline-block;
+    width: 18px; height: 2px;
+    background: #4338CA;
+    border-radius: 2px;
+  }
+  .bank-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    row-gap: 10px;
+    column-gap: 24px;
+  }
+  .bank-grid .row {
+    display: flex;
+    flex-direction: column;
+  }
+  .bank-grid .k {
+    font-size: 9.5px;
+    letter-spacing: 1.5px;
+    color: #94A3B8;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .bank-grid .v {
+    font-size: 13px;
+    color: #0F172A;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.3px;
+  }
+
+  .closing {
+    margin-top: 6px;
+  }
+  .closing p {
+    font-size: 12.5px;
+    color: #1F2937;
+    line-height: 1.7;
+    margin-bottom: 6px;
+  }
+
+  /* ---------- Signature ---------- */
+  .signature {
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid #E5E7EB;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 40px;
+  }
+  .sig-left .yours {
+    font-size: 12.5px;
+    color: #1F2937;
+    margin-bottom: 30px;
+  }
+  .sig-left .sig-line {
+    width: 200px;
+    height: 1px;
+    background: #0F172A;
+    margin-bottom: 5px;
+  }
+  .sig-left .sig-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+  .sig-left .sig-title {
+    font-size: 11px;
+    color: #64748B;
+    margin-top: 1px;
+  }
+  .sig-right {
+    text-align: right;
+    font-size: 11.5px;
+    color: #475569;
+    line-height: 1.7;
+  }
+  .sig-right .k {
+    font-size: 9.5px;
+    letter-spacing: 1.8px;
+    color: #94A3B8;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .sig-right .v {
+    font-size: 12.5px;
+    color: #0F172A;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  /* ---------- Spacer to push footer down ---------- */
+  .spacer { flex: 1; }
+
+  /* ---------- Footer (identical to invoice) ---------- */
+  .page-footer {
+    background: #1E1B4B;
+    color: rgba(255, 255, 255, 0.88);
+    text-align: center;
+    padding: 11px 24px;
+    font-size: 10.5px;
+    line-height: 1.5;
+    flex-shrink: 0;
+  }
+  .page-footer .links { color: #C4B5FD; font-weight: 500; }
+  .page-footer .links span { margin: 0 6px; color: rgba(255, 255, 255, 0.3); }
+  .page-footer .fine {
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 2px;
+    font-size: 9.5px;
+  }
+
+  /* ---------- Print ---------- */
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { background: #FFFFFF; }
+    .page {
+      margin: 0;
+      box-shadow: none;
+      border-radius: 0;
+      width: 210mm;
+      height: 297mm;
+    }
+    .no-print { display: none !important; }
+  }
+
+  /* ---------- Print FAB ---------- */
+  .print-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: linear-gradient(135deg, #4F46E5, #7C3AED);
+    color: #FFFFFF;
+    border: none;
+    padding: 13px 22px;
+    border-radius: 999px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 12px 28px rgba(79, 70, 229, 0.45);
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- HEADER (same as Invoice) -->
+  <header class="hero">
+    <div class="hero-row">
+      <div class="brand">
+        <div class="logo">NS</div>
+        <div class="brand-text">
+          <h1>NeoSoft Solutions</h1>
+          <p>Software Development · Cloud Solutions · Digital Transformation</p>
+        </div>
+      </div>
+      <div class="doc-badge">
+        <div class="label">LETTER</div>
+        <div class="number">Payment Release Request</div>
+        <div class="date">12 June 2026</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- Recipient -->
+    <div class="recipient">
+      <div class="to-line">To,</div>
+      <div class="addr">
+        The General Manager<br>
+        <span class="company">Dharni Sugar Mill Private Limited</span><br>
+        Sankhni, Tehsil Bhitarwar,<br>
+        Dist. Gwalior (M.P.)
+      </div>
+    </div>
+
+    <!-- Kind Attention -->
+    <div class="attention">
+      <div class="attn-label">Kind Attention</div>
+      <div class="attn-name">Brajnandan Gupta</div>
+      <div class="attn-title">Manager (IT)</div>
+    </div>
+
+    <!-- Subject -->
+    <div class="subject">
+      <div class="lbl">Subject</div>
+      <div class="text">Request for Release of Payment</div>
+    </div>
+
+    <!-- Letter Body -->
+    <div class="salutation">Dear Sir,</div>
+    <div class="letter-body">
+      <p>Kindly release our payment against the submitted bill at the earliest.</p>
+      <p>Our bank and PAN details are as follows:</p>
+    </div>
+
+    <!-- Bank / PAN Details -->
+    <div class="bank-card">
+      <div class="head">Bank &amp; PAN Details</div>
+      <div class="bank-grid">
+        <div class="row">
+          <div class="k">Bank Name</div>
+          <div class="v">State Bank of India</div>
+        </div>
+        <div class="row">
+          <div class="k">Branch Name</div>
+          <div class="v">Nayapura, Bhopal</div>
+        </div>
+        <div class="row">
+          <div class="k">IFSC Code</div>
+          <div class="v">SBIN0010526</div>
+        </div>
+        <div class="row">
+          <div class="k">Account Number</div>
+          <div class="v">41577400439</div>
+        </div>
+        <div class="row">
+          <div class="k">PAN</div>
+          <div class="v">EUAPG1627K</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Closing -->
+    <div class="closing">
+      <p>We request you to kindly process the payment and oblige.</p>
+      <p>Thanking you.</p>
+    </div>
+
+    <!-- Signature -->
+    <div class="signature">
+      <div class="sig-left">
+        <div class="yours">Yours faithfully,</div>
+        <div class="sig-line"></div>
+        <div class="sig-name">Tejasva</div>
+        <div class="sig-title">For NeoSoft Solutions</div>
+      </div>
+      <div class="sig-right">
+        <div class="k">Date</div>
+        <div class="v">12<sup>th</sup> June 2026</div>
+        <div class="k">Place</div>
+        <div class="v">Gwalior</div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+  </div>
+
+  <!-- FOOTER (same as Invoice) -->
+  <footer class="page-footer">
+    <div class="links">
+      NeoSoft Solutions <span>·</span> Custom Software <span>·</span> Cloud Solutions <span>·</span> API Integrations <span>·</span> Mobile Apps
+    </div>
+    <div class="fine">Computer-generated letter · Valid without physical signature</div>
+  </footer>
+</div>
+
+<button class="print-fab no-print" onclick="window.print()">🖨 &nbsp;Save as PDF</button>
+
+</body>
+</html>

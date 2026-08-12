@@ -4,6 +4,7 @@ const axios = require('axios');
 const User = require('../models/User');
 const ensureAuth = require('../middleware/auth');
 const { buildP2Json } = require('../utils/jsonBuilder');
+const { normalizeFormData, validateFormData } = require('../utils/formFields');
 
 const Draft = require('../models/Draft');
 const Submission = require('../models/Submission');
@@ -18,18 +19,11 @@ router.get('/', ensureAuth, async (req, res) => {
 // POST /preview - Build JSON and show preview
 router.post('/preview', ensureAuth, async (req, res) => {
   const user = await User.findById(req.session.userId).lean();
-  const formData = req.body;
+  const formData = normalizeFormData(req.body);
 
-  // Convert checkbox values to boolean
-  const checkboxFields = [
-    'prod_white_enabled', 'prod_raw_enabled', 'prod_procured_enabled',
-    'prod_diversion_enabled', 'prod_ethanol_enabled',
-    'disp_611_enabled', 'disp_612_enabled', 'disp_613_enabled', 'disp_614_enabled',
-    'disp_62_enabled', 'disp_63_enabled', 'disp_64_enabled', 'disp_65_enabled',
-    'exp_661_enabled', 'exp_662_enabled', 'exp_663_enabled', 'exp_66b_enabled'
-  ];
-  for (const field of checkboxFields) {
-    formData[field] = formData[field] === 'on' || formData[field] === 'true' || formData[field] === true;
+  const errors = validateFormData(formData);
+  if (errors.length) {
+    return res.status(400).render('home', { user, formData, errors });
   }
 
   const p2Json = buildP2Json(user, formData);

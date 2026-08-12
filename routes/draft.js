@@ -4,6 +4,7 @@ const Draft = require('../models/Draft');
 const User = require('../models/User');
 const ensureAuth = require('../middleware/auth');
 const { buildP2Json } = require('../utils/jsonBuilder');
+const { normalizeFormData } = require('../utils/formFields');
 
 // GET /drafts — List all drafts for the logged-in user
 router.get('/drafts', ensureAuth, async (req, res) => {
@@ -82,17 +83,7 @@ router.post('/drafts/:id/edit', ensureAuth, async (req, res) => {
     req.session.activeDraftId = draft._id.toString();
 
     // Re-process checkbox fields to booleans for the EJS template
-    const formData = { ...draft.formData };
-    const checkboxFields = [
-      'prod_white_enabled', 'prod_raw_enabled', 'prod_procured_enabled',
-      'prod_diversion_enabled', 'prod_ethanol_enabled',
-      'disp_611_enabled', 'disp_612_enabled', 'disp_613_enabled', 'disp_614_enabled',
-      'disp_62_enabled', 'disp_63_enabled', 'disp_64_enabled', 'disp_65_enabled',
-      'exp_661_enabled', 'exp_662_enabled', 'exp_663_enabled', 'exp_66b_enabled'
-    ];
-    for (const field of checkboxFields) {
-      formData[field] = formData[field] === 'on' || formData[field] === 'true' || formData[field] === true;
-    }
+    const formData = normalizeFormData(draft.formData);
 
     res.render('home', { user, formData });
   } catch (err) {

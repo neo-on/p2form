@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Invoice NSS/INV/2026-27/001 — NeoSoft Solutions → Parvati Sweetness and Power Ltd.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #0F172A;
+    background: #EEF2FF;
+    line-height: 1.5;
+    font-size: 12.5px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    width: 210mm;
+    height: 297mm;
+    margin: 18px auto;
+    background: #FFFFFF;
+    box-shadow: 0 24px 60px rgba(15, 11, 46, 0.18);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    background: linear-gradient(135deg, #1E1B4B 0%, #312E81 45%, #4338CA 100%);
+    color: #FFFFFF;
+    padding: 22px 36px;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: -80px; right: -80px;
+    width: 260px; height: 260px;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.32) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    position: relative;
+    z-index: 1;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 48px; height: 48px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+  .brand-text h1 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 24px;
+    line-height: 1.1;
+  }
+  .brand-text p {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 3px;
+    letter-spacing: 0.2px;
+  }
+  .doc-badge {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 11px;
+    padding: 11px 18px;
+    text-align: right;
+    min-width: 200px;
+  }
+  .doc-badge .label {
+    font-size: 9.5px;
+    letter-spacing: 3.5px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+  }
+  .doc-badge .number {
+    font-weight: 800;
+    font-size: 18px;
+    color: #FFFFFF;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+  .doc-badge .date {
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.72);
+    margin-top: 2px;
+  }
+
+  /* ---------- Body ---------- */
+  .body {
+    padding: 22px 36px 14px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- Parties ---------- */
+  .parties {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .party-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 11px;
+    padding: 13px 16px;
+    background: #FAFAFC;
+  }
+  .party-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: #6366F1;
+    font-weight: 600;
+    padding: 2px 8px;
+    background: rgba(99, 102, 241, 0.08);
+    border-radius: 999px;
+    display: inline-block;
+    margin-bottom: 6px;
+  }
+  .party-card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 2px;
+  }
+  .party-card p {
+    font-size: 12px;
+    color: #475569;
+    line-height: 1.45;
+  }
+
+  /* ---------- Items Table ---------- */
+  .items {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #E5E7EB;
+    border-radius: 11px;
+    overflow: hidden;
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  .items thead th {
+    background: #F8FAFC;
+    color: #475569;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-weight: 600;
+    padding: 9px 14px;
+    text-align: left;
+    border-bottom: 1px solid #E5E7EB;
+  }
+  .items thead th.right { text-align: right; }
+  .items tbody td {
+    padding: 13px 14px;
+    vertical-align: top;
+  }
+  .items tbody td.right { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .item-title { font-weight: 700; color: #0F172A; margin-bottom: 2px; font-size: 12.5px; }
+  .item-sub { font-size: 11px; color: #64748B; line-height: 1.5; }
+  .sac-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    background: #EEF2FF;
+    color: #4338CA;
+    border-radius: 5px;
+    font-size: 10.5px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Pricing ---------- */
+  .pricing {
+    background:
+      radial-gradient(ellipse at top right, rgba(139, 92, 246, 0.22) 0%, transparent 55%),
+      linear-gradient(135deg, #0F0B2E 0%, #161035 55%, #1E1B4B 100%);
+    color: #FFFFFF;
+    border-radius: 13px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+  }
+  .pricing .label-row .ttl {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .pricing .label-row .desc {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
+  }
+  .pricing .label-row .words {
+    font-size: 11px;
+    color: #A5B4FC;
+    margin-top: 2px;
+  }
+  .pricing .amount {
+    font-size: 32px;
+    font-weight: 800;
+    background: linear-gradient(90deg, #93C5FD 0%, #C4B5FD 60%, #F0ABFC 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.5px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* ---------- Bottom Grid: Bank + Notes ---------- */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .info-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 11px;
+    padding: 13px 16px;
+    background: #FAFAFC;
+  }
+  .info-head {
+    font-size: 9.5px;
+    letter-spacing: 3px;
+    color: #4338CA;
+    font-weight: 700;
+    margin-bottom: 9px;
+  }
+  .contact-card {
+    display: flex;
+    flex-direction: column;
+  }
+  .contact-hero {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    margin-top: 4px;
+  }
+  .contact-icon-lg {
+    width: 46px; height: 46px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #EEF2FF, #E0E7FF);
+    border-radius: 12px;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .contact-lbl {
+    font-size: 9.5px;
+    letter-spacing: 1.5px;
+    color: #94A3B8;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+  .contact-number {
+    font-size: 19px;
+    color: #1E1B4B;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.3px;
+  }
+  .notes-list {
+    list-style: none;
+    font-size: 11px;
+    color: #334155;
+    line-height: 1.55;
+  }
+  .notes-list li {
+    padding-left: 14px;
+    position: relative;
+    margin-bottom: 5px;
+  }
+  .notes-list li::before {
+    content: "•";
+    color: #6366F1;
+    font-weight: 700;
+    position: absolute;
+    left: 2px;
+    top: 0;
+  }
+  .notes-list strong { color: #0F172A; }
+
+  /* ---------- Signatures ---------- */
+  .signatures {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    margin-top: auto;
+    padding-top: 18px;
+    border-top: 1px solid #E5E7EB;
+  }
+  .sig-block .sig-label {
+    font-size: 9.5px;
+    letter-spacing: 3px;
+    color: #64748B;
+    font-weight: 600;
+    margin-bottom: 36px;
+  }
+  .sig-block .sig-line {
+    height: 1px;
+    background: #0F172A;
+    margin-bottom: 5px;
+  }
+  .sig-block .sig-name { font-size: 12.5px; font-weight: 700; color: #0F172A; }
+  .sig-block .sig-title { font-size: 10.5px; color: #64748B; margin-top: 1px; }
+
+  /* ---------- Footer ---------- */
+  .page-footer {
+    background: #1E1B4B;
+    color: rgba(255, 255, 255, 0.88);
+    text-align: center;
+    padding: 11px 24px;
+    font-size: 10.5px;
+    line-height: 1.5;
+    flex-shrink: 0;
+  }
+  .page-footer .links { color: #C4B5FD; font-weight: 500; }
+  .page-footer .links span { margin: 0 6px; color: rgba(255, 255, 255, 0.3); }
+  .page-footer .fine {
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 2px;
+    font-size: 9.5px;
+  }
+
+  /* ---------- Print ---------- */
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { background: #FFFFFF; }
+    .page {
+      margin: 0;
+      box-shadow: none;
+      border-radius: 0;
+      width: 210mm;
+      height: 297mm;
+    }
+    .no-print { display: none !important; }
+  }
+
+  /* ---------- Print FAB ---------- */
+  .print-fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: linear-gradient(135deg, #4F46E5, #7C3AED);
+    color: #FFFFFF;
+    border: none;
+    padding: 13px 22px;
+    border-radius: 999px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 12px 28px rgba(79, 70, 229, 0.45);
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <header class="hero">
+    <div class="hero-row">
+      <div class="brand">
+        <div class="logo">NS</div>
+        <div class="brand-text">
+          <h1>NeoSoft Solutions</h1>
+          <p>Software Development · Cloud Solutions · Digital Transformation</p>
+        </div>
+      </div>
+      <div class="doc-badge">
+        <div class="label">INVOICE</div>
+        <div class="number">NSS/INV/2026-27/001</div>
+        <div class="date">30 May 2026</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- BODY -->
+  <div class="body">
+
+    <!-- Parties -->
+    <section class="parties">
+      <div class="party-card">
+        <div class="party-label">BILL TO</div>
+        <h3>The General Manager</h3>
+        <p>Parvati Sweetness and Power Ltd.<br>Sankhini, Gwalior (M.P.)</p>
+      </div>
+      <div class="party-card">
+        <div class="party-label">BILL FROM</div>
+        <h3>NeoSoft Solutions</h3>
+        <p>Custom Software · Cloud Solutions · API Integrations<br>Ref: Quotation P2F/2026-27/001 dated 15 April 2026</p>
+      </div>
+    </section>
+
+    <!-- Line Item Table -->
+    <table class="items">
+      <thead>
+        <tr>
+          <th style="width:8%;">#</th>
+          <th style="width:76%;">Description</th>
+          <th class="right" style="width:16%;">Amount (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>
+            <div class="item-title">Software Development, Deployment &amp; Support</div>
+            <div class="item-sub">Cloud-hosted P2 Form Builder for NSWS Portal — NSWS P2 Integration, Cloud Server, Data Storage, Onboarding &amp; 1-Year Support.</div>
+          </td>
+          <td class="right">60,000.00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Total / Pricing -->
+    <div class="pricing">
+      <div class="label-row">
+        <div class="ttl">TOTAL PAYABLE</div>
+        <div class="desc">Final Bill · All Charges Inclusive</div>
+        <div class="words">In Words: Rupees Sixty Thousand Only</div>
+      </div>
+      <div class="amount">₹ 60,000/-</div>
+    </div>
+
+    <!-- Notes + Contact -->
+    <div class="bottom-grid">
+      <div class="info-card">
+        <div class="info-head">NOTES</div>
+        <ul class="notes-list">
+          <li><strong>Payment:</strong> Due on receipt. Bank / UPI details will be shared separately.</li>
+          <li><strong>Reference:</strong> Kindly mention Invoice No. <strong>NSS/INV/2026-27/001</strong> in the payment narration.</li>
+          <li><strong>Support:</strong> 1 year complimentary technical support &amp; NSWS API updates included as per Quotation P2F/2026-27/001.</li>
+        </ul>
+      </div>
+
+      <div class="info-card contact-card">
+        <div class="info-head">FOR QUERIES</div>
+        <div class="contact-hero">
+          <div class="contact-icon-lg">📞</div>
+          <div>
+            <div class="contact-lbl">Call / WhatsApp</div>
+            <div class="contact-number">+91 80853 01338</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Signatures -->
+    <div class="signatures">
+      <div class="sig-block">
+        <div class="sig-label">FOR — NEOSOFT SOLUTIONS</div>
+        <div class="sig-line"></div>
+        <div class="sig-name">Authorised Signatory</div>
+        <div class="sig-title">Director / Proprietor</div>
+      </div>
+      <div class="sig-block">
+        <div class="sig-label">RECEIVED BY — CLIENT</div>
+        <div class="sig-line"></div>
+        <div class="sig-name">Authorised Signatory</div>
+        <div class="sig-title">Parvati Sweetness and Power Ltd.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="page-footer">
+    <div class="links">
+      NeoSoft Solutions <span>·</span> Custom Software <span>·</span> Cloud Solutions <span>·</span> API Integrations <span>·</span> Mobile Apps
+    </div>
+    <div class="fine">Computer-generated invoice · Valid without physical signature</div>
+  </footer>
+</div>
+
+<button class="print-fab no-print" onclick="window.print()">🖨 &nbsp;Save as PDF</button>
+
+</body>
+</html>
