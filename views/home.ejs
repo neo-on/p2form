@@ -680,7 +680,9 @@ const SECTIONS = [
                 <%- numField('cane_prev' + i + '_production', 'Sugar production') %>
                 <%- numField('cane_prev' + i + '_recovery', 'Sugar recovery', { unit: '%' }) %>
                 <%- numField('cane_prev' + i + '_payable', 'Cane price payable during the season', { unit: '₹ Cr' }) %>
-                <%- numField('cane_prev' + i + '_paid', 'Cane price paid during the month', { unit: '₹ Cr' }) %>
+                <%- numField('cane_prev' + i + '_payable_month', 'Cane price payable during the month', { unit: '₹ Cr', tip: 'Normally 0.00 for a past season — NSWS requires the field to be present.' }) %>
+                <%- numField('cane_prev' + i + '_paid_season', 'Cane price paid during the season (cumulative)', { unit: '₹ Cr', tip: 'Total paid against this season to date.' }) %>
+                <%- numField('cane_prev' + i + '_paid', 'Cane price paid during the month (arrears)', { unit: '₹ Cr' }) %>
                 <%- intField('cane_prev' + i + '_farmers', 'No. of farmers cane procured from') %>
               </div>
             </div>
