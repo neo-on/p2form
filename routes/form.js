@@ -3,8 +3,8 @@ const router = express.Router();
 const axios = require('axios');
 const User = require('../models/User');
 const ensureAuth = require('../middleware/auth');
-const { buildP2Json } = require('../utils/jsonBuilder');
-const { normalizeFormData, validateFormData } = require('../utils/formFields');
+const { buildP2Json, findEmptyPayloadValues } = require('../utils/jsonBuilder');
+const { normalizeFormData, validateFormData, validateUserAccount } = require('../utils/formFields');
 
 const Draft = require('../models/Draft');
 const Submission = require('../models/Submission');
@@ -21,7 +21,7 @@ router.post('/preview', ensureAuth, async (req, res) => {
   const user = await User.findById(req.session.userId).lean();
   const formData = normalizeFormData(req.body);
 
-  const errors = validateFormData(formData);
+  const errors = validateFormData(formData).concat(validateUserAccount(user));
   if (errors.length) {
     return res.status(400).render('home', { user, formData, errors });
   }
@@ -62,6 +62,19 @@ router.post('/send', ensureAuth, async (req, res) => {
   }
 
   try {
+    // Last line of defence: never let a blank value reach NSWS, it rejects them.
+    const blanks = findEmptyPayloadValues(p2Json);
+    if (blanks.length) {
+      return res.render('result', {
+        user,
+        success: false,
+        statusCode: 400,
+        responseData:
+          'Submission blocked before sending: the following fields are empty and NSWS would reject them.\n\n' +
+          blanks.map(b => `  - ${b}`).join('\n')
+      });
+    }
+
     const response = await axios.post(
       process.env.NSWS_API_URL,
       p2Json,
