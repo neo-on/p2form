@@ -44,7 +44,7 @@ jobs:
     name: 🚀 Deploy to Production
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 25
 
     steps:
       - name: Deploy via SSH
@@ -54,8 +54,8 @@ jobs:
           username: ${{ secrets.SERVER_USER || 'root' }}
           password: ${{ secrets.SERVER_PASSWORD }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          script_stop: true
-          command_timeout: 120s
+          # npm ci on a small VPS regularly needs several minutes.
+          command_timeout: 20m
           script: |
             set -e
 
@@ -70,7 +70,7 @@ jobs:
 
             # [2/5] Install production dependencies
             echo "[2/5] 🧩 Installing dependencies..."
-            npm ci --omit=dev
+            npm ci --omit=dev --no-audit --no-fund --prefer-offline
 
             # [3/5] Zero-downtime reload
             echo "[3/5] 🔄 Reloading application..."
