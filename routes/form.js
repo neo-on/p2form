@@ -76,11 +76,20 @@ router.post('/send', ensureAuth, async (req, res) => {
       }
     );
 
-    // Some 200 OK responses from NSWS might contain error messages (e.g. invalid swsId payload)
     const data = response.data;
-    if (data && data.status !== "200" && data.status !== 200 && data.message) {
-      // NSWS accepted the credentials but rejected the payload geometry
-      throw new Error(JSON.stringify(data));
+
+    // NSWS signals rejection with HTTP 200 *and* a body like:
+    //   {"status":"200","message":"Kindly provide mandatory subField ...","uniqueId":null}
+    // The only reliable success signal is a non-empty uniqueId - the acknowledgement
+    // reference NSWS issues once the filing is actually recorded. Checking `status`
+    // alone silently recorded rejected filings as successful (and deleted the draft).
+    const uniqueId = data && (data.uniqueId || data.uniqueID || data.unique_id);
+    const statusOk = !data || data.status === '200' || data.status === 200;
+
+    if (!statusOk || !uniqueId) {
+      const rejection = new Error(JSON.stringify(data));
+      rejection.nswsStatusCode = response.status;
+      throw rejection;
     }
 
     // Persist the successful submission for "Past Requests"
@@ -112,7 +121,7 @@ router.post('/send', ensureAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('NSWS Request Failed:', err.message);
-    const statusCode = err.response ? err.response.status : 500;
+    const statusCode = err.nswsStatusCode || (err.response ? err.response.status : 500);
     
     // Parse NSWS's specific rejection message gracefully
     let responseData;
