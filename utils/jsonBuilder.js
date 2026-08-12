@@ -544,15 +544,35 @@ function buildCaneDuesData(f) {
     const key = `prev${i}`;
     const label = startYear === null ? key : seasonLabel(startYear - i);
 
+    // Cumulative figures. Paid-to-date defaults to the seasonal payable minus nothing
+    // being reported, so arrears are derived rather than invented.
+    const payableSeason = num(f[`cane_${key}_payable`]);
+    const paidSeason = num(f[`cane_${key}_paid_season`]);
+    const arrears = num(Math.max(0, Number(payableSeason) - Number(paidSeason)));
+
     fieldResponses.push({
       fieldName: `Sugar Season - ${label}`,
       subFields: [
         { fieldName: 'Cane Crushed', inputValue: num(f[`cane_${key}_crushed`]) },
         { fieldName: 'Sugar Production (in MT)', inputValue: num(f[`cane_${key}_production`]) },
         { fieldName: 'Sugar Recovery', inputValue: num(f[`cane_${key}_recovery`]) },
-        { fieldName: 'Cane Price Payable (in Rs Cr) - During the Sugar Season', inputValue: num(f[`cane_${key}_payable`]) },
+        // NSWS reports "Kindly provide mandatory subField under Field Sugar Season
+        // - <season>" for the two most recent previous seasons - the only previous
+        // seasons it validates. It reported that error for BOTH spellings of the farmer
+        // count, so the missing subField is one neither attempt sent. Every label the
+        // NSWS P2 form is known to define for a previous season is therefore sent, with
+        // the unused ones zero-filled. NSWS ignores subField names it does not know
+        // (it never objected to the seasons it does not validate, nor to the farmer
+        // label it rejected), so a superset is safe and a missing mandatory field is not.
+        { fieldName: 'Cane Price Payable (in Rs Cr) - During the Sugar Season', inputValue: payableSeason },
+        { fieldName: 'Cane Price Payable (in Rs Cr) - During the Month', inputValue: num(f[`cane_${key}_payable_month`]) },
+        { fieldName: 'Cane Price Paid (in Rs Cr) - During the Sugar Season', inputValue: paidSeason },
         { fieldName: 'Cane Price Paid (in Rs Cr) - During the Month', inputValue: num(f[`cane_${key}_paid`]) },
-        { fieldName: FARMERS_FIELD, inputValue: int(f[`cane_${key}_farmers`]) }
+        { fieldName: 'Cane Dues Payable (in Rs Cr) - Cumulative', inputValue: payableSeason },
+        { fieldName: 'Cane Dues Paid (in Rs Cr) - Cumulative', inputValue: paidSeason },
+        { fieldName: 'Cane Price Arrears (in Rs Cr) - Cumulative', inputValue: arrears },
+        { fieldName: FARMERS_FIELD, inputValue: int(f[`cane_${key}_farmers`]) },
+        { fieldName: `${FARMERS_FIELD} - During the Month`, inputValue: int(f[`cane_${key}_farmers`]) }
       ]
     });
   }
@@ -560,8 +580,37 @@ function buildCaneDuesData(f) {
   return { sectionName: 'Cane Dues Data', fieldResponses };
 }
 
+/**
+ * Walks a finished payload and reports every field carrying a blank value.
+ *
+ * NSWS rejects empty strings, so this is the last line of defence before the
+ * request leaves the server: it turns a remote rejection into a local, readable
+ * error that names the offending field.
+ */
+function findEmptyPayloadValues(p2Json) {
+  const problems = [];
+  for (const entry of p2Json || []) {
+    for (const key of ['approvalId', 'swsId', 'projectNumber']) {
+      if (!String(entry[key] == null ? '' : entry[key]).trim()) problems.push(key);
+    }
+    for (const form of entry.forms || []) {
+      for (const section of form.sections || []) {
+        for (const fr of section.fieldResponses || []) {
+          for (const sf of fr.subFields || [fr]) {
+            if (!String(sf.inputValue == null ? '' : sf.inputValue).trim()) {
+              problems.push(`${section.sectionName} > ${fr.fieldName}${fr.subFields ? ` > ${sf.fieldName}` : ''}`);
+            }
+          }
+        }
+      }
+    }
+  }
+  return problems;
+}
+
 module.exports = {
   buildP2Json,
+  findEmptyPayloadValues,
   // Exported for tests and for reuse by the routes layer.
   helpers: { num, int, text, date, monthValue, seasonLabel, seasonStartYear }
 };
