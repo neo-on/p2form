@@ -54,15 +54,21 @@ router.get('/drafts/:id/preview', ensureAuth, async (req, res) => {
 
     const user = await User.findById(req.session.userId).lean();
 
+    // Always REBUILD the payload from the saved answers. draft.p2Json is only a
+    // historical snapshot: a draft saved before a builder fix would otherwise
+    // replay the old, rejected payload and the fix would appear to do nothing.
+    const formData = normalizeFormData(draft.formData);
+    const p2Json = buildP2Json(user, formData);
+
     // Restore session state so Send/Back-to-edit work seamlessly
-    req.session.p2Json = draft.p2Json;
-    req.session.formData = draft.formData;
+    req.session.p2Json = p2Json;
+    req.session.formData = formData;
     req.session.activeDraftId = draft._id.toString();
 
     res.render('preview', {
       user,
-      p2Json: JSON.stringify(draft.p2Json, null, 2),
-      jsonData: draft.p2Json,
+      p2Json: JSON.stringify(p2Json, null, 2),
+      jsonData: p2Json,
       draft
     });
   } catch (err) {
