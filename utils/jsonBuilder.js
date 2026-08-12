@@ -24,6 +24,24 @@
 
 const MAX_SERIAL_ROWS = 25;
 
+/**
+ * The farmer-count subField label, used identically for ALL five cane-dues seasons.
+ *
+ * The captured reference request used "No. of farmers from which cane procured -
+ * During the Month" for the two most recent previous seasons and the plain label for
+ * the other three. Replicating that inconsistency made NSWS reject the submission:
+ *
+ *   {"status":"200","message":" Kindly provide mandatory subField under Field
+ *    Sugar Season - 2024-25 under section Cane Dues Data Kindly provide mandatory
+ *    subField under Field Sugar Season - 2023-24 under section Cane Dues Data",
+ *    "uniqueId":null}
+ *
+ * The two seasons named in that error are exactly the two that carried the
+ * "- During the Month" suffix, so NSWS does not recognise that variant and treats
+ * the mandatory subField as missing. The plain label is the one it accepts.
+ */
+const FARMERS_FIELD = 'No. of farmers from which cane procured';
+
 /** Decimal quantity -> always 2 decimal places, e.g. "1487.90". */
 function num(value) {
   if (value === undefined || value === null) return '0.00';
@@ -518,19 +536,13 @@ function buildCaneDuesData(f) {
     subFields: [
       { fieldName: 'Cane Price Payable (in Rs Cr) - During the Month', inputValue: num(f.cane_current_payable) },
       { fieldName: 'Cane Price Paid (in Rs Cr) - During the Month', inputValue: num(f.cane_current_paid) },
-      { fieldName: 'No. of farmers from which cane procured', inputValue: int(f.cane_current_farmers) }
+      { fieldName: FARMERS_FIELD, inputValue: int(f.cane_current_farmers) }
     ]
   }];
 
   for (let i = 1; i <= 4; i++) {
     const key = `prev${i}`;
     const label = startYear === null ? key : seasonLabel(startYear - i);
-
-    // NSWS labels the farmer count differently for the two most recent
-    // previous seasons - this mirrors the reference payload exactly.
-    const farmersFieldName = i <= 2
-      ? 'No. of farmers from which cane procured - During the Month'
-      : 'No. of farmers from which cane procured';
 
     fieldResponses.push({
       fieldName: `Sugar Season - ${label}`,
@@ -540,7 +552,7 @@ function buildCaneDuesData(f) {
         { fieldName: 'Sugar Recovery', inputValue: num(f[`cane_${key}_recovery`]) },
         { fieldName: 'Cane Price Payable (in Rs Cr) - During the Sugar Season', inputValue: num(f[`cane_${key}_payable`]) },
         { fieldName: 'Cane Price Paid (in Rs Cr) - During the Month', inputValue: num(f[`cane_${key}_paid`]) },
-        { fieldName: farmersFieldName, inputValue: int(f[`cane_${key}_farmers`]) }
+        { fieldName: FARMERS_FIELD, inputValue: int(f[`cane_${key}_farmers`]) }
       ]
     });
   }
