@@ -255,7 +255,7 @@ const SECTIONS = [
           <span class="sec-count" data-count-for="sec-production"></span>
         </div>
         <div class="card-body">
-          <p class="sec-help"><i class="bi bi-lightbulb"></i> Turn on only the sub-sections that apply this month. Anything left off is excluded from the NSWS payload.</p>
+          <p class="sec-help"><i class="bi bi-lightbulb"></i> Switch on the sub-sections you need to fill in. NSWS expects the complete P2 return every month, so sub-sections left off are still filed &mdash; as 0.00.</p>
 
           <!-- 2(I) White / Refined -->
           <div class="sub-section">
@@ -372,7 +372,7 @@ const SECTIONS = [
           <span class="sec-count" data-count-for="sec-dispatches"></span>
         </div>
         <div class="card-body">
-          <p class="sec-help"><i class="bi bi-lightbulb"></i> Release-order dispatches (6.1.x) and the BISS entry each hold a single record. Sections 6.3–6.5 accept multiple mills.</p>
+          <p class="sec-help"><i class="bi bi-lightbulb"></i> Release-order dispatches (6.1.x) and the BISS entry each hold a single record. Sections 6.3&ndash;6.5 accept multiple mills. Sub-sections left switched off are still filed as 0.00.</p>
 
           <%
             const dispatchSections = [
@@ -489,6 +489,8 @@ const SECTIONS = [
           <span class="sec-count" data-count-for="sec-export"></span>
         </div>
         <div class="card-body">
+          <p class="sec-help"><i class="bi bi-lightbulb"></i> Switch on only what applies. All four export sub-sections are filed every month &mdash; the ones left off go as 0.00.</p>
+
           <!-- 6.6(a)(i) -->
           <div class="sub-section">
             <div class="sub-head">
@@ -603,7 +605,7 @@ const SECTIONS = [
             <div class="stock-row">
               <span class="stock-label">White sugar</span>
               <span><input type="text" name="stock_factory_white_open" class="form-control fld-input js-num" inputmode="decimal" placeholder="0.00" value="<%= f.stock_factory_white_open || '' %>"></span>
-              <span><input type="text" name="stock_factory_white_close" class="form-control fld-input js-num" inputmode="decimal" placeholder="0.00" value="<%= f.stock_factory_white_close || '' %>"></span>
+              <span class="stock-derived" title="NSWS derives this figure and rejects the filing if it is sent">Derived by NSWS</span>
             </div>
             <div class="stock-row">
               <span class="stock-label">BISS / brown sugar</span>
@@ -613,7 +615,7 @@ const SECTIONS = [
             <div class="stock-row">
               <span class="stock-label">Raw sugar</span>
               <span><input type="text" name="stock_factory_raw_open" class="form-control fld-input js-num" inputmode="decimal" placeholder="0.00" value="<%= f.stock_factory_raw_open || '' %>"></span>
-              <span><input type="text" name="stock_factory_raw_close" class="form-control fld-input js-num" inputmode="decimal" placeholder="0.00" value="<%= f.stock_factory_raw_close || '' %>"></span>
+              <span class="stock-derived" title="NSWS derives this figure and rejects the filing if it is sent">Derived by NSWS</span>
             </div>
 
             <div class="stock-group-label"><i class="bi bi-shop"></i> Outside godown (duty paid)</div>
@@ -680,8 +682,6 @@ const SECTIONS = [
                 <%- numField('cane_prev' + i + '_production', 'Sugar production') %>
                 <%- numField('cane_prev' + i + '_recovery', 'Sugar recovery', { unit: '%' }) %>
                 <%- numField('cane_prev' + i + '_payable', 'Cane price payable during the season', { unit: '₹ Cr' }) %>
-                <%- numField('cane_prev' + i + '_payable_month', 'Cane price payable during the month', { unit: '₹ Cr', tip: 'Normally 0.00 for a past season — NSWS requires the field to be present.' }) %>
-                <%- numField('cane_prev' + i + '_paid_season', 'Cane price paid during the season (cumulative)', { unit: '₹ Cr', tip: 'Total paid against this season to date.' }) %>
                 <%- numField('cane_prev' + i + '_paid', 'Cane price paid during the month (arrears)', { unit: '₹ Cr' }) %>
                 <%- intField('cane_prev' + i + '_farmers', 'No. of farmers cane procured from') %>
               </div>
