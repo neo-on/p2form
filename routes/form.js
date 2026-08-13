@@ -5,9 +5,23 @@ const User = require('../models/User');
 const ensureAuth = require('../middleware/auth');
 const { buildP2Json, findEmptyPayloadValues } = require('../utils/jsonBuilder');
 const { normalizeFormData, validateFormData, validateUserAccount } = require('../utils/formFields');
+const { interpretNswsResponse } = require('../utils/nswsResponse');
 
 const Draft = require('../models/Draft');
 const Submission = require('../models/Submission');
+
+/**
+ * Sessions with a /send request currently in flight.
+ *
+ * A P2 filing cannot be withdrawn: NSWS accepts every well-formed payload and issues a
+ * fresh acknowledgement id, so sending the same return twice leaves the mill with two
+ * filings for one month. The preview page disables the Send button on submit, but that
+ * does not stop a second tab or a double POST, and the payload lives in the session
+ * where both requests can read it before either finishes.
+ *
+ * A per-process set is enough here - ecosystem.config.js runs a single instance.
+ */
+const sendsInFlight = new Set();
 
 // GET / - Form page
 router.get('/', ensureAuth, async (req, res) => {
@@ -61,6 +75,19 @@ router.post('/send', ensureAuth, async (req, res) => {
     });
   }
 
+  // A concurrent /send for the same session is already talking to NSWS. Both requests
+  // read the same session payload, so letting this one through would file twice.
+  const sendKey = String(req.session.userId);
+  if (sendsInFlight.has(sendKey)) {
+    return res.render('result', {
+      user,
+      success: false,
+      statusCode: 409,
+      responseData: 'A submission for this account is already being sent to NSWS. Please wait for it to finish, then check Past Requests before trying again.'
+    });
+  }
+  sendsInFlight.add(sendKey);
+
   try {
     // Last line of defence: never let a blank value reach NSWS, it rejects them.
     const blanks = findEmptyPayloadValues(p2Json);
@@ -91,15 +118,13 @@ router.post('/send', ensureAuth, async (req, res) => {
 
     const data = response.data;
 
-    // NSWS signals rejection with HTTP 200 *and* a body like:
-    //   {"status":"200","message":"Kindly provide mandatory subField ...","uniqueId":null}
-    // The only reliable success signal is a non-empty uniqueId - the acknowledgement
-    // reference NSWS issues once the filing is actually recorded. Checking `status`
-    // alone silently recorded rejected filings as successful (and deleted the draft).
-    const uniqueId = data && (data.uniqueId || data.uniqueID || data.unique_id);
-    const statusOk = !data || data.status === '200' || data.status === 200;
+    // NSWS answers HTTP 200 for accepted AND rejected filings; the acknowledgement id
+    // is the only reliable success signal. Its key casing varies between the official
+    // documents (`UniqueId` on success, `uniqueId` on failure), so the lookup is
+    // case-insensitive - see utils/nswsResponse.js.
+    const { accepted, uniqueId } = interpretNswsResponse(data);
 
-    if (!statusOk || !uniqueId) {
+    if (!accepted) {
       const rejection = new Error(JSON.stringify(data));
       rejection.nswsStatusCode = response.status;
       throw rejection;
@@ -113,6 +138,7 @@ router.post('/send', ensureAuth, async (req, res) => {
         p2Json,
         apiResponse: data,
         statusCode: response.status,
+        uniqueId,
         sugarSeason: (req.session.formData && req.session.formData.sugarSeason) || '',
         month: (req.session.formData && req.session.formData.month) || ''
       });
@@ -123,8 +149,18 @@ router.post('/send', ensureAuth, async (req, res) => {
     // Proactive cleanup: If they successfully submitted a loaded draft, delete it from MongoDB
     if (req.session.activeDraftId) {
       await Draft.deleteOne({ _id: req.session.activeDraftId, userId: req.session.userId });
-      req.session.activeDraftId = null; // Clear the session tracker
     }
+
+    // The filing is recorded and cannot be withdrawn, so the payload must not survive
+    // in the session: the result page is a normal POST response, and a refresh or a
+    // Back-then-resubmit would otherwise re-POST /send and file the same month again.
+    // With the payload gone that replay lands on the `if (!p2Json)` guard above and
+    // redirects to a fresh form instead.
+    // Only the success path clears - a rejected filing was never recorded, so keeping
+    // its data lets the user retry without re-entering the whole form.
+    req.session.p2Json = null;
+    req.session.formData = null;
+    req.session.activeDraftId = null;
 
     res.render('result', {
       user,
@@ -152,6 +188,8 @@ router.post('/send', ensureAuth, async (req, res) => {
       statusCode,
       responseData
     });
+  } finally {
+    sendsInFlight.delete(sendKey);
   }
 });
 
