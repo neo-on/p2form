@@ -2650,6 +2650,16 @@ input.js-num, input.js-int { text-align: right; font-variant-numeric: tabular-nu
   font-style: italic;
 }
 
+/* Closing stock NSWS calculates itself — sending it makes the API return HTTP 500. */
+.stock-derived {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 /* ---------- Sticky action bar ---------- */
 
 .sticky-actions {
