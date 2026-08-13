@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { buildP2Json, helpers } = require('../utils/jsonBuilder');
+const { normalizeFormData, CHECKBOX_FIELDS } = require('../utils/formFields');
 
 const referencePayload = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'fixtures', 'nsws-reference-payload.json'), 'utf8')
@@ -198,182 +199,99 @@ function collectPaths(payload) {
 }
 
 /**
- * Deliberate, evidence-backed deviations from the captured reference request.
+ * The builder must reproduce the captured NSWS request EXACTLY - no additions.
  *
- * 1. ADDITIONS — the sample omitted "Closing Stock" for the two factory-premises rows
- *    (white and raw sugar). We cannot verify NSWS derives those server-side, so we
- *    always send both opening and closing figures for every stock row.
- *
- * 2. CANE DUES PRICE MATRIX — NSWS rejected the captured request, and rejected it again
- *    after the farmer label was normalised, with the identical message:
- *
- *      "Kindly provide mandatory subField under Field Sugar Season - 2024-25 under
- *       section Cane Dues Data Kindly provide mandatory subField under Field Sugar
- *       Season - 2023-24 under section Cane Dues Data"   (uniqueId: null)
- *
- *    Only the two most recent previous seasons are ever named — the only previous
- *    seasons NSWS validates. Crucially the SAME error appeared for BOTH spellings of the
- *    farmer count, so the missing subField is one that neither attempt ever sent.
- *    NSWS silently ignores subField names it does not know (it never objected to the
- *    2022-23 / 2021-22 blocks, nor to the farmer label it would not accept), so every
- *    label the P2 form is known to define for a previous season is now sent, with the
- *    unused ones zero-filled. A superset is safe; a missing mandatory field is not.
- *
- * 3. BOTH FARMER LABELS — both observed spellings are sent for previous seasons, so the
- *    mandatory one is present whichever spelling NSWS expects.
+ * A previous revision sent a "superset" payload (cumulative/arrears figures for every
+ * previous season, both farmer-count labels, and a Closing Stock for the two factory
+ * rows NSWS derives itself) on the theory that NSWS ignores subField names it does not
+ * know. It does not: those 26 extra subFields made the API answer HTTP 500. The known-
+ * good request is the contract, so parity is asserted strictly and in both directions.
  */
-const INTENTIONAL_ADDITIONS = [
-  { fieldName: 'Factory Premises - White Sugar', subField: 'Closing Stock' },
-  { fieldName: 'Factory Premises - Raw Sugar', subField: 'Closing Stock' }
-];
-
 const FARMERS_FIELD = 'No. of farmers from which cane procured';
 const FARMERS_FIELD_MONTH = 'No. of farmers from which cane procured - During the Month';
 
-/** The full set of subFields we send for a previous sugar season, in order. */
+/** The exact set of subFields NSWS defines for a previous sugar season, in order. */
 const PREV_SEASON_SUBFIELDS = [
   'Cane Crushed',
   'Sugar Production (in MT)',
   'Sugar Recovery',
   'Cane Price Payable (in Rs Cr) - During the Sugar Season',
-  'Cane Price Payable (in Rs Cr) - During the Month',
-  'Cane Price Paid (in Rs Cr) - During the Sugar Season',
-  'Cane Price Paid (in Rs Cr) - During the Month',
-  'Cane Dues Payable (in Rs Cr) - Cumulative',
-  'Cane Dues Paid (in Rs Cr) - Cumulative',
-  'Cane Price Arrears (in Rs Cr) - Cumulative',
-  FARMERS_FIELD,
-  FARMERS_FIELD_MONTH
+  'Cane Price Paid (in Rs Cr) - During the Month'
 ];
-
-/** Reference payload with the documented deviations applied, for strict comparison. */
-function expectedPayload() {
-  const clone = JSON.parse(JSON.stringify(referencePayload));
-  const sections = clone[0].forms[0].sections;
-
-  const stock = sections.find(s => s.sectionName === 'Stock of Sugar (In MT)');
-  for (const add of INTENTIONAL_ADDITIONS) {
-    const row = stock.fieldResponses.find(fr => fr.fieldName === add.fieldName);
-    row.subFields.push({ fieldName: add.subField, inputValue: '0.00' });
-  }
-
-  const dues = sections.find(s => s.sectionName === 'Cane Dues Data');
-  for (const season of dues.fieldResponses.slice(1)) {
-    // Values carry over from the reference; anything it never sent defaults to zero,
-    // and the farmer count is reported under both labels.
-    const byName = new Map(season.subFields.map(sf => [sf.fieldName, sf.inputValue]));
-    const farmers = byName.get(FARMERS_FIELD) ?? byName.get(FARMERS_FIELD_MONTH) ?? '0';
-    const payable = byName.get('Cane Price Payable (in Rs Cr) - During the Sugar Season') ?? '0.00';
-    const derived = {
-      'Cane Dues Payable (in Rs Cr) - Cumulative': payable,
-      'Cane Dues Paid (in Rs Cr) - Cumulative': '0.00',
-      // The reference never carried a cumulative paid figure, so arrears equal payable.
-      'Cane Price Arrears (in Rs Cr) - Cumulative': payable
-    };
-    season.subFields = PREV_SEASON_SUBFIELDS.map(name => ({
-      fieldName: name,
-      inputValue: name === FARMERS_FIELD || name === FARMERS_FIELD_MONTH
-        ? farmers
-        : derived[name] ?? byName.get(name) ?? '0.00'
-    }));
-  }
-
-  return clone;
-}
 
 describe('utils/jsonBuilder.js — NSWS payload parity', () => {
   const payload = buildP2Json(referenceUser, referenceFormData);
 
   test('reproduces the known-good NSWS payload exactly', () => {
-    expect(payload).toEqual(expectedPayload());
+    expect(payload).toEqual(referencePayload);
   });
 
-  test('only the documented deviations differ from the raw reference', () => {
-    const ours = new Set(collectPaths(payload));
-    const theirs = new Set(collectPaths(referencePayload));
-    const extra = [...ours].filter(p => !theirs.has(p));
-    const missing = [...theirs].filter(p => !ours.has(p));
-
-    // Every previous season gains the price-matrix fields it was missing, plus the
-    // farmer label it did not already carry.
-    const seasons = ['2024-25', '2023-24', '2022-23', '2021-22'];
-    const added = [
-      'Cane Price Payable (in Rs Cr) - During the Month',
-      'Cane Price Paid (in Rs Cr) - During the Sugar Season',
-      'Cane Dues Payable (in Rs Cr) - Cumulative',
-      'Cane Dues Paid (in Rs Cr) - Cumulative',
-      'Cane Price Arrears (in Rs Cr) - Cumulative'
-    ];
-    const expectedExtra = [
-      'Stock of Sugar (In MT) > Factory Premises - Raw Sugar > Closing Stock',
-      'Stock of Sugar (In MT) > Factory Premises - White Sugar > Closing Stock'
-    ];
-    for (const s of seasons) {
-      for (const name of added) expectedExtra.push(`Cane Dues Data > Sugar Season - ${s} > ${name}`);
-      // The reference carried only one of the two farmer labels per season.
-      const had = ['2024-25', '2023-24'].includes(s) ? FARMERS_FIELD_MONTH : FARMERS_FIELD;
-      const gained = had === FARMERS_FIELD ? FARMERS_FIELD_MONTH : FARMERS_FIELD;
-      expectedExtra.push(`Cane Dues Data > Sugar Season - ${s} > ${gained}`);
-    }
-
-    expect(extra.sort()).toEqual(expectedExtra.sort());
-    // Nothing the reference sent is ever dropped.
-    expect(missing).toEqual([]);
+  test('sends no field the known-good request did not, and drops none of its fields', () => {
+    const ours = collectPaths(payload);
+    const theirs = collectPaths(referencePayload);
+    expect(ours.filter(p => !theirs.includes(p))).toEqual([]);
+    expect(theirs.filter(p => !ours.includes(p))).toEqual([]);
   });
 
-  test('every previous season carries both farmer-count labels NSWS is known to use', () => {
+  test('the farmer-count label follows how recent the season is', () => {
     const dues = payload[0].forms[0].sections.find(s => s.sectionName === 'Cane Dues Data');
     expect(dues.fieldResponses).toHaveLength(5);
 
-    // The current season is the one shape NSWS has never complained about.
+    const labelOf = fr => fr.subFields[fr.subFields.length - 1].fieldName;
+
+    // Current season and the two OLDEST previous seasons use the plain label...
+    expect(labelOf(dues.fieldResponses[0])).toBe(FARMERS_FIELD);
+    expect(labelOf(dues.fieldResponses[3])).toBe(FARMERS_FIELD);
+    expect(labelOf(dues.fieldResponses[4])).toBe(FARMERS_FIELD);
+    // ...while the two most recent previous seasons use the monthly variant. NSWS
+    // answers "Kindly provide mandatory subField under Field Sugar Season - <season>"
+    // for exactly these two when the plain label is used, so this is not cosmetic.
+    expect(labelOf(dues.fieldResponses[1])).toBe(FARMERS_FIELD_MONTH);
+    expect(labelOf(dues.fieldResponses[2])).toBe(FARMERS_FIELD_MONTH);
+  });
+
+  test('a previous season carries exactly the six subFields NSWS defines', () => {
+    const dues = payload[0].forms[0].sections.find(s => s.sectionName === 'Cane Dues Data');
+    for (const [idx, season] of dues.fieldResponses.slice(1).entries()) {
+      expect(season.subFields.map(sf => sf.fieldName)).toEqual([
+        ...PREV_SEASON_SUBFIELDS,
+        idx < 2 ? FARMERS_FIELD_MONTH : FARMERS_FIELD
+      ]);
+    }
+  });
+
+  test('the current season carries exactly its three subFields', () => {
+    const dues = payload[0].forms[0].sections.find(s => s.sectionName === 'Cane Dues Data');
     expect(dues.fieldResponses[0].subFields.map(sf => sf.fieldName)).toEqual([
       'Cane Price Payable (in Rs Cr) - During the Month',
       'Cane Price Paid (in Rs Cr) - During the Month',
       FARMERS_FIELD
     ]);
-
-    for (const season of dues.fieldResponses.slice(1)) {
-      expect(season.subFields.map(sf => sf.fieldName)).toEqual(PREV_SEASON_SUBFIELDS);
-    }
   });
 
-  test('cumulative arrears are derived from payable minus paid, never invented', () => {
-    const json = buildP2Json(referenceUser, {
-      sugarSeason: '2025-26',
-      cane_prev1_payable: '25.52',
-      cane_prev1_paid_season: '10.02'
-    });
-    const season = json[0].forms[0].sections
-      .find(s => s.sectionName === 'Cane Dues Data').fieldResponses[1];
-    const by = Object.fromEntries(season.subFields.map(sf => [sf.fieldName, sf.inputValue]));
-
-    expect(by['Cane Dues Payable (in Rs Cr) - Cumulative']).toBe('25.52');
-    expect(by['Cane Dues Paid (in Rs Cr) - Cumulative']).toBe('10.02');
-    expect(by['Cane Price Arrears (in Rs Cr) - Cumulative']).toBe('15.50');
-  });
-
-  test('arrears never go negative when more has been paid than was payable', () => {
-    const json = buildP2Json(referenceUser, {
-      sugarSeason: '2025-26',
-      cane_prev1_payable: '5.00',
-      cane_prev1_paid_season: '7.50'
-    });
-    const season = json[0].forms[0].sections
-      .find(s => s.sectionName === 'Cane Dues Data').fieldResponses[1];
-    const by = Object.fromEntries(season.subFields.map(sf => [sf.fieldName, sf.inputValue]));
-    expect(by['Cane Price Arrears (in Rs Cr) - Cumulative']).toBe('0.00');
-  });
-
-  test('every stock row reports both opening and closing stock', () => {
+  test('NSWS derives closing stock for the two factory rows, so it is never sent', () => {
     const stock = payload[0].forms[0].sections.find(s => s.sectionName === 'Stock of Sugar (In MT)');
     expect(stock.fieldResponses).toHaveLength(6);
-    for (const row of stock.fieldResponses) {
-      expect(row.subFields.map(sf => sf.fieldName)).toEqual(['Opening Stock', 'Closing Stock']);
+
+    const byName = Object.fromEntries(
+      stock.fieldResponses.map(fr => [fr.fieldName, fr.subFields.map(sf => sf.fieldName)])
+    );
+    expect(byName['Factory Premises - White Sugar']).toEqual(['Opening Stock']);
+    expect(byName['Factory Premises - Raw Sugar']).toEqual(['Opening Stock']);
+
+    // Every other row still reports both figures.
+    for (const name of [
+      'Factory Premises - BISS / Brown Sugar, If any',
+      'Outside Godown (Duty paid) - White Sugar',
+      'Outside Godown (Duty paid) - BISS / Brown Sugar, If any',
+      'Outside Godown (Duty paid) - Raw Sugar'
+    ]) {
+      expect(byName[name]).toEqual(['Opening Stock', 'Closing Stock']);
     }
   });
 
   test('field name coverage matches the reference payload with no gaps', () => {
-    expect(collectPaths(payload)).toEqual(collectPaths(expectedPayload()));
+    expect(collectPaths(payload)).toEqual(collectPaths(referencePayload));
   });
 
   test('fieldResponses is always a flat array of objects (never nested arrays)', () => {
@@ -423,19 +341,55 @@ describe('utils/jsonBuilder.js — defaults & coercion', () => {
     const caneCrushed = sections.find(s => s.sectionName === 'Cane Crushed');
     expect(caneCrushed.fieldResponses[1].inputValue).toBe('0.00');
 
+    // The P2 return is a complete declaration: every subsection is always sent,
+    // zero-filled, exactly as the accepted reference payload does.
     const production = sections.find(s => s.sectionName.startsWith('Production of white'));
-    expect(production.fieldResponses[0].inputValue).toBe('[]');
-    // Only "Select" + mandatory "4. Recovery % age" remain.
-    expect(production.fieldResponses).toHaveLength(2);
-    expect(production.fieldResponses[1].fieldName).toBe('4. Recovery % age');
+    expect(production.fieldResponses).toHaveLength(7);
+    expect(production.fieldResponses[6].fieldName).toBe('4. Recovery % age');
 
     const dispatches = sections.find(s => s.sectionName === 'Dispatches');
-    expect(dispatches.fieldResponses[0].inputValue).toBe('[]');
-    expect(dispatches.fieldResponses[1].fieldName).toBe('HSN code and related details');
+    expect(dispatches.fieldResponses[dispatches.fieldResponses.length - 1].fieldName)
+      .toBe('HSN code and related details');
+    expect(dispatches.fieldResponses[1].fieldName).toBe('6.1.1 Domestic Dispatch w.r.t. monthly release quantity');
+
+    const exportSection = sections.find(s => s.sectionName === 'Export');
+    expect(exportSection.fieldResponses).toHaveLength(5);
 
     const importSection = sections.find(s => s.sectionName === 'Import');
     expect(importSection.fieldResponses).toHaveLength(4);
     expect(importSection.fieldResponses[0].inputValue).toBe('No');
+  });
+
+  test('every "Select" list is always the full NSWS list, whatever the toggles say', () => {
+    const refSelect = sectionName => referencePayload[0].forms[0].sections
+      .find(s => s.sectionName === sectionName).fieldResponses
+      .find(fr => fr.fieldName === 'Select').inputValue;
+
+    for (const formData of [
+      { sugarSeason: '2025-26' },
+      normalizeFormData({ sugarSeason: '2025-26' }),
+      { ...referenceFormData }
+    ]) {
+      const sections = buildP2Json(referenceUser, formData)[0].forms[0].sections;
+      for (const name of ['Production of white / refined / Raw Sugar from Domestic sources', 'Dispatches', 'Export']) {
+        const select = sections.find(s => s.sectionName === name).fieldResponses[0];
+        expect(select.fieldName).toBe('Select');
+        expect(select.inputValue).toBe(refSelect(name));
+      }
+    }
+  });
+
+  test('the payload field set is identical whether section toggles are on or off', () => {
+    const base = { sugarSeason: '2025-26', month: 'FEBRUARY' };
+    const allOn = {};
+    for (const key of CHECKBOX_FIELDS) allOn[key] = 'on';
+
+    const off = collectPaths(buildP2Json(referenceUser, normalizeFormData(base)));
+    const on = collectPaths(buildP2Json(referenceUser, normalizeFormData({ ...base, ...allOn })));
+    const ref = collectPaths(referencePayload);
+
+    expect(off).toEqual(ref);
+    expect(on).toEqual(ref);
   });
 
   test('Import always sends all four fields, zero-filled when not applicable', () => {
